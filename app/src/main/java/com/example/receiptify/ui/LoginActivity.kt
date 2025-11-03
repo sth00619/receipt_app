@@ -31,6 +31,30 @@ class LoginActivity : AppCompatActivity() {
         private const val TAG = "LoginActivity"
         private const val RC_GOOGLE_SIGN_IN = 9001
 
+        /**
+         * Google Sign-In 설정 가이드:
+         *
+         * 1. SHA-1 인증서 지문 추가:
+         *    - 터미널에서: ./gradlew signingReport
+         *    - SHA-1과 SHA-256 복사
+         *
+         * 2. Firebase Console 설정:
+         *    - https://console.firebase.google.com/project/receiptify-18b9d
+         *    - 프로젝트 설정 → Android 앱 → SHA 인증서 지문 추가
+         *
+         * 3. Google Sign-In 활성화:
+         *    - Authentication → Sign-in method → Google 활성화
+         *
+         * 4. google-services.json 업데이트:
+         *    - 프로젝트 설정에서 새 google-services.json 다운로드
+         *    - app/ 폴더에 덮어쓰기
+         *
+         * 5. Web Client ID 추출:
+         *    - google-services.json에서 "client_type": 3 인 client_id 찾기
+         *    - 또는 Google Cloud Console → API 및 서비스 → 사용자 인증 정보
+         *    - "웹 클라이언트" 또는 "Web client (auto created by Google Service)" ID 복사
+         *    - 아래 GOOGLE_WEB_CLIENT_ID에 붙여넣기
+         */
         // TODO: Firebase Console에서 발급받은 Web Client ID로 변경
         private const val GOOGLE_WEB_CLIENT_ID = "YOUR_GOOGLE_WEB_CLIENT_ID"
 
@@ -59,6 +83,12 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupGoogleSignIn() {
+        // Google Web Client ID 설정 확인
+        if (GOOGLE_WEB_CLIENT_ID == "YOUR_GOOGLE_WEB_CLIENT_ID") {
+            Log.e(TAG, "Google Web Client ID가 설정되지 않았습니다. Firebase Console에서 Web Client ID를 확인하세요.")
+            // 사용자에게 알림을 표시하지 않고 로그만 남김 (개발자용)
+        }
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(GOOGLE_WEB_CLIENT_ID)
             .requestEmail()
@@ -232,18 +262,26 @@ class LoginActivity : AppCompatActivity() {
                 if (idToken != null) {
                     firebaseAuthWithGoogle(idToken)
                 } else {
+                    Log.e(TAG, "Google Sign-In ID Token이 null입니다. Firebase 설정을 확인하세요.")
                     Toast.makeText(
                         this,
-                        getString(R.string.error_google_signin),
-                        Toast.LENGTH_SHORT
+                        "Google 로그인 설정 오류: ID Token을 받을 수 없습니다.",
+                        Toast.LENGTH_LONG
                     ).show()
                 }
             } catch (e: ApiException) {
-                Log.e(TAG, "Google 로그인 실패", e)
+                val errorMessage = when (e.statusCode) {
+                    10 -> "Google Play Services가 업데이트되지 않았거나 설정이 잘못되었습니다. (Error: DEVELOPER_ERROR)\n\nFirebase Console에서:\n1. SHA-1 인증서 추가\n2. google-services.json 업데이트\n3. Google Sign-In 활성화"
+                    12501 -> "Google 로그인이 취소되었습니다."
+                    7 -> "네트워크 연결을 확인하세요."
+                    else -> "Google 로그인 실패 (Code: ${e.statusCode})"
+                }
+
+                Log.e(TAG, "Google 로그인 실패 - StatusCode: ${e.statusCode}, Message: ${e.message}", e)
                 Toast.makeText(
                     this,
-                    getString(R.string.error_google_signin),
-                    Toast.LENGTH_SHORT
+                    errorMessage,
+                    Toast.LENGTH_LONG
                 ).show()
             }
         }
