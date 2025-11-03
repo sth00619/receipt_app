@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Receiptify Theme Colors -->
+    <color name="primary_purple">#7C3AED</color>
+    <color name="primary_purple_dark">#6D28D9</color>
+    <color name="primary_purple_light">#8B5CF6</color>
+    <color name="background_light">#F5F3FF</color>
+    <color name="background_white">#FFFFFF</color>
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="naver_green">#03C75A</color>
+    <color name="google_red">#DB4437</color>
+    <color name="error_red">#EF4444</color>
+</resources>
