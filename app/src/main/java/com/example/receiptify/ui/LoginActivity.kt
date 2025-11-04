@@ -6,7 +6,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.example.receiptify.MainActivity
 import com.example.receiptify.R
 import com.example.receiptify.auth.FirebaseAuthManager
 import com.example.receiptify.databinding.ActivityLoginBinding
@@ -31,12 +30,12 @@ class LoginActivity : AppCompatActivity() {
         private const val TAG = "LoginActivity"
         private const val RC_GOOGLE_SIGN_IN = 9001
 
-        // TODO: Firebase Console에서 발급받은 Web Client ID로 변경
+        // Google Web Client ID
         private const val GOOGLE_WEB_CLIENT_ID = "763595991477-k7es3foiml6lknn646mqk7fnehhqd0d8.apps.googleusercontent.com"
 
-        // TODO: Naver Developers에서 발급받은 정보로 변경
-        private const val NAVER_CLIENT_ID = "YOUR_NAVER_CLIENT_ID"
-        private const val NAVER_CLIENT_SECRET = "YOUR_NAVER_CLIENT_SECRET"
+        // Naver OAuth
+        private const val NAVER_CLIENT_ID = "4_hKHdQVR0VetSVY9IHn"
+        private const val NAVER_CLIENT_SECRET = "ktALIseJP6"
         private const val NAVER_CLIENT_NAME = "Receiptify"
     }
 
@@ -47,15 +46,29 @@ class LoginActivity : AppCompatActivity() {
 
         authManager = FirebaseAuthManager.getInstance()
 
-        // 이미 로그인된 경우 MainActivity로 이동
-        if (authManager.currentUser != null) {
-            navigateToMain()
-            return
-        }
-
         setupGoogleSignIn()
         setupNaverSignIn()
         setupClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // onResume에서 로그인 상태 확인
+        checkLoginStatus()
+    }
+
+    private fun checkLoginStatus() {
+        // Firebase 로그인 확인
+        val firebaseUser = authManager.currentUser
+
+        // Naver 로그인 확인
+        val naverAccessToken = NaverIdLoginSDK.getAccessToken()
+
+        if (firebaseUser != null || naverAccessToken != null) {
+            Log.d(TAG, "User already logged in, navigating to HomeActivity")
+            navigateToMain()
+        }
     }
 
     private fun setupGoogleSignIn() {
@@ -74,6 +87,7 @@ class LoginActivity : AppCompatActivity() {
             NAVER_CLIENT_SECRET,
             NAVER_CLIENT_NAME
         )
+        Log.d(TAG, "Naver SDK initialized")
     }
 
     private fun setupClickListeners() {
@@ -158,62 +172,80 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun signInWithNaver() {
+        Log.d(TAG, "Naver login started")
+
         val oauthLoginCallback = object : OAuthLoginCallback {
             override fun onSuccess() {
+                Log.d(TAG, "Naver OAuth success - requesting profile")
+
                 // 로그인 성공 후 사용자 프로필 가져오기
                 NidOAuthLogin().callProfileApi(object : NidProfileCallback<NidProfileResponse> {
                     override fun onSuccess(result: NidProfileResponse) {
+                        val userId = result.profile?.id
                         val email = result.profile?.email
                         val name = result.profile?.name
 
-                        Log.d(TAG, "Naver 로그인 성공 - Email: $email, Name: $name")
+                        Log.d(TAG, "Naver profile retrieved successfully")
+                        Log.d(TAG, "User ID: $userId")
+                        Log.d(TAG, "Email: $email")
+                        Log.d(TAG, "Name: $name")
 
-                        // TODO: Naver 계정을 Firebase와 연동하는 로직 구현
-                        // 현재는 단순히 MainActivity로 이동
-                        Toast.makeText(
-                            this@LoginActivity,
-                            getString(R.string.login_success),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        navigateToMain()
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@LoginActivity,
+                                "Naver login successful!\nName: ${name ?: "User"}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            Log.d(TAG, "About to call navigateToMain()")
+                            navigateToMain()
+                        }
                     }
 
                     override fun onError(errorCode: Int, message: String) {
-                        Log.e(TAG, "Naver 프로필 가져오기 실패: $message")
-                        Toast.makeText(
-                            this@LoginActivity,
-                            getString(R.string.error_naver_signin),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Log.e(TAG, "Naver profile retrieval failed - errorCode: $errorCode, message: $message")
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@LoginActivity,
+                                "Failed to get profile information",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
 
                     override fun onFailure(httpStatus: Int, message: String) {
-                        Log.e(TAG, "Naver 프로필 가져오기 실패: $message")
-                        Toast.makeText(
-                            this@LoginActivity,
-                            getString(R.string.error_naver_signin),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Log.e(TAG, "Naver profile retrieval failed - httpStatus: $httpStatus, message: $message")
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@LoginActivity,
+                                "Failed to get profile information",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 })
             }
 
             override fun onError(errorCode: Int, message: String) {
-                Log.e(TAG, "Naver 로그인 실패: $message")
-                Toast.makeText(
-                    this@LoginActivity,
-                    getString(R.string.error_naver_signin),
-                    Toast.LENGTH_SHORT
-                ).show()
+                Log.e(TAG, "Naver login failed - errorCode: $errorCode, message: $message")
+                runOnUiThread {
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "Naver login failed: $message",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
 
             override fun onFailure(httpStatus: Int, message: String) {
-                Log.e(TAG, "Naver 로그인 실패: $message")
-                Toast.makeText(
-                    this@LoginActivity,
-                    getString(R.string.error_naver_signin),
-                    Toast.LENGTH_SHORT
-                ).show()
+                Log.e(TAG, "Naver login failed - httpStatus: $httpStatus, message: $message")
+                runOnUiThread {
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "Naver login failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
 
@@ -239,7 +271,7 @@ class LoginActivity : AppCompatActivity() {
                     ).show()
                 }
             } catch (e: ApiException) {
-                Log.e(TAG, "Google 로그인 실패", e)
+                Log.e(TAG, "Google login failed", e)
                 Toast.makeText(
                     this,
                     getString(R.string.error_google_signin),
@@ -271,7 +303,16 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateToMain() {
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
+        Log.d(TAG, "navigateToMain() called")
+        try {
+            val intent = Intent(this, HomeActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            Log.d(TAG, "HomeActivity started successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting HomeActivity", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 }

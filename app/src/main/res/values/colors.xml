@@ -14,4 +14,18 @@
     <color name="naver_green">#03C75A</color>
     <color name="google_red">#DB4437</color>
     <color name="error_red">#EF4444</color>
+
+    <!-- Category Colors -->
+    <color name="category_food">#F59E0B</color>
+    <color name="category_transport">#3B82F6</color>
+    <color name="category_shopping">#EC4899</color>
+    <color name="category_others">#6B7280</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#8B5CF6</color>
+    <color name="gradient_end">#7C3AED</color>
+
+    <!-- Card Colors -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="divider">#E5E7EB</color>
 </resources>
