@@ -32,7 +32,7 @@ class LoginActivity : AppCompatActivity() {
         private const val RC_GOOGLE_SIGN_IN = 9001
 
         // TODO: Firebase Console에서 발급받은 Web Client ID로 변경
-        private const val GOOGLE_WEB_CLIENT_ID = "YOUR_GOOGLE_WEB_CLIENT_ID"
+        private const val GOOGLE_WEB_CLIENT_ID = "763595991477-k7es3foiml6lknn646mqk7fnehhqd0d8.apps.googleusercontent.com"
 
         // TODO: Naver Developers에서 발급받은 정보로 변경
         private const val NAVER_CLIENT_ID = "YOUR_NAVER_CLIENT_ID"
