@@ -3,6 +3,8 @@ package com.example.receiptify.ui
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -11,7 +13,7 @@ import com.example.receiptify.R
 import com.example.receiptify.auth.FirebaseAuthManager
 import com.example.receiptify.databinding.ActivityProfileBinding
 import com.navercorp.nid.NaverIdLoginSDK
-import com.navercorp.nid.oauth.NidOAuthLogin // 이 import는 필요합니다.
+import com.navercorp.nid.oauth.NidOAuthLogin
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -98,17 +100,34 @@ class ProfileActivity : AppCompatActivity() {
 
         // 다크 모드 설정
         binding.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
+            // 먼저 설정 저장
             sharedPreferences.edit().putBoolean(KEY_DARK_MODE_ENABLED, isChecked).apply()
 
             // 다크 모드 적용
-            if (isChecked) {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            val nightMode = if (isChecked) {
+                AppCompatDelegate.MODE_NIGHT_YES
             } else {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                AppCompatDelegate.MODE_NIGHT_NO
             }
 
-            // 액티비티 재시작
-            recreate()
+            // Binder 트랜잭션 충돌 방지를 위해 지연 후 적용
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    try {
+                        AppCompatDelegate.setDefaultNightMode(nightMode)
+                        // recreate() 대신 새 Intent로 재시작하여 Binder 트랜잭션 충돌 방지
+                        val intent = Intent(this, ProfileActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        finish()
+                        // 부드러운 전환 효과
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    } catch (e: Exception) {
+                        // 예외 발생 시 로깅만 하고 계속 진행
+                        e.printStackTrace()
+                    }
+                }
+            }, 100) // 100ms 지연으로 Binder 트랜잭션 완료 대기
         }
 
         // 언어 설정
@@ -155,28 +174,57 @@ class ProfileActivity : AppCompatActivity() {
 
     // --- 여기부터 수정된 부분 ---
     private fun performLogout() {
-        // Firebase 로그아웃
-        authManager.signOut()
-
-        // Naver 로그아웃
-        val naverAccessToken = NaverIdLoginSDK.getAccessToken()
-        if (naverAccessToken != null) {
-            // 수정된 부분: Context 인수가 제거됨 (SDK 변경 사항)
-            NidOAuthLogin().callDeleteTokenApi(object : com.navercorp.nid.oauth.OAuthLoginCallback {
-                override fun onSuccess() {
-                    // 성공
-                }
-                override fun onFailure(httpStatus: Int, message: String) {
-                    // 실패해도 로그아웃 진행
-                }
-                override fun onError(errorCode: Int, message: String) {
-                    // 에러 발생해도 로그아웃 진행
-                }
-            })
+        // lifecycle 확인: Activity가 종료 중이거나 파괴된 상태가 아닌지 확인
+        if (isFinishing || isDestroyed) {
+            return
         }
 
-        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
-        navigateToLogin()
+        try {
+            // Firebase 로그아웃
+            authManager.signOut()
+
+            // Naver 로그아웃 - Binder 트랜잭션 오류 방지를 위해 비동기 처리
+            val naverAccessToken = NaverIdLoginSDK.getAccessToken()
+            if (naverAccessToken != null && !isFinishing && !isDestroyed) {
+                // Handler를 사용하여 Binder 트랜잭션 충돌 방지
+                Handler(Looper.getMainLooper()).post {
+                    if (!isFinishing && !isDestroyed) {
+                        try {
+                            NidOAuthLogin().callDeleteTokenApi(object : com.navercorp.nid.oauth.OAuthLoginCallback {
+                                override fun onSuccess() {
+                                    // 성공 시 추가 작업 없음
+                                }
+                                override fun onFailure(httpStatus: Int, message: String) {
+                                    // 실패해도 로그아웃 진행 (네트워크 오류 등)
+                                }
+                                override fun onError(errorCode: Int, message: String) {
+                                    // 에러 발생해도 로그아웃 진행
+                                }
+                            })
+                        } catch (e: Exception) {
+                            // Binder 트랜잭션 오류 등 예외 처리
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            }
+
+            // Toast와 화면 전환은 약간 지연하여 Binder 트랜잭션 완료 대기
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                    navigateToLogin()
+                }
+            }, 150) // 150ms 지연으로 안전한 처리 보장
+
+        } catch (e: Exception) {
+            // 전체 로그아웃 프로세스에서 예외 발생 시 처리
+            e.printStackTrace()
+            if (!isFinishing && !isDestroyed) {
+                Toast.makeText(this, "Logout completed", Toast.LENGTH_SHORT).show()
+                navigateToLogin()
+            }
+        }
     }
     // --- 여기까지 수정된 부분 ---
 

@@ -2,6 +2,8 @@ package com.example.receiptify.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -174,82 +176,122 @@ class LoginActivity : AppCompatActivity() {
     private fun signInWithNaver() {
         Log.d(TAG, "Naver login started")
 
+        // Activity lifecycle 확인
+        if (isFinishing || isDestroyed) {
+            Log.w(TAG, "Activity is finishing or destroyed, aborting Naver login")
+            return
+        }
+
         val oauthLoginCallback = object : OAuthLoginCallback {
             override fun onSuccess() {
                 Log.d(TAG, "Naver OAuth success - requesting profile")
 
-                // 로그인 성공 후 사용자 프로필 가져오기
-                NidOAuthLogin().callProfileApi(object : NidProfileCallback<NidProfileResponse> {
-                    override fun onSuccess(result: NidProfileResponse) {
-                        val userId = result.profile?.id
-                        val email = result.profile?.email
-                        val name = result.profile?.name
+                // Activity lifecycle 재확인
+                if (isFinishing || isDestroyed) {
+                    Log.w(TAG, "Activity finished during OAuth, skipping profile request")
+                    return
+                }
 
-                        Log.d(TAG, "Naver profile retrieved successfully")
-                        Log.d(TAG, "User ID: $userId")
-                        Log.d(TAG, "Email: $email")
-                        Log.d(TAG, "Name: $name")
+                // Binder 트랜잭션 충돌 방지를 위해 Handler 사용
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!isFinishing && !isDestroyed) {
+                        try {
+                            // 로그인 성공 후 사용자 프로필 가져오기
+                            NidOAuthLogin().callProfileApi(object : NidProfileCallback<NidProfileResponse> {
+                                override fun onSuccess(result: NidProfileResponse) {
+                                    val userId = result.profile?.id
+                                    val email = result.profile?.email
+                                    val name = result.profile?.name
 
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@LoginActivity,
-                                "Naver login successful!\nName: ${name ?: "User"}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                                    Log.d(TAG, "Naver profile retrieved successfully")
+                                    Log.d(TAG, "User ID: $userId")
+                                    Log.d(TAG, "Email: $email")
+                                    Log.d(TAG, "Name: $name")
 
-                            Log.d(TAG, "About to call navigateToMain()")
-                            navigateToMain()
+                                    runOnUiThread {
+                                        if (!isFinishing && !isDestroyed) {
+                                            Toast.makeText(
+                                                this@LoginActivity,
+                                                "Naver login successful!\nName: ${name ?: "User"}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            Log.d(TAG, "About to call navigateToMain()")
+                                            navigateToMain()
+                                        }
+                                    }
+                                }
+
+                                override fun onError(errorCode: Int, message: String) {
+                                    Log.e(TAG, "Naver profile retrieval failed - errorCode: $errorCode, message: $message")
+                                    runOnUiThread {
+                                        if (!isFinishing && !isDestroyed) {
+                                            Toast.makeText(
+                                                this@LoginActivity,
+                                                "Failed to get profile information",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+
+                                override fun onFailure(httpStatus: Int, message: String) {
+                                    Log.e(TAG, "Naver profile retrieval failed - httpStatus: $httpStatus, message: $message")
+                                    runOnUiThread {
+                                        if (!isFinishing && !isDestroyed) {
+                                            Toast.makeText(
+                                                this@LoginActivity,
+                                                "Failed to get profile information",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            })
+                        } catch (e: Exception) {
+                            // Binder 트랜잭션 오류 등 예외 처리
+                            Log.e(TAG, "Exception during profile API call", e)
+                            e.printStackTrace()
                         }
                     }
-
-                    override fun onError(errorCode: Int, message: String) {
-                        Log.e(TAG, "Naver profile retrieval failed - errorCode: $errorCode, message: $message")
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@LoginActivity,
-                                "Failed to get profile information",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-
-                    override fun onFailure(httpStatus: Int, message: String) {
-                        Log.e(TAG, "Naver profile retrieval failed - httpStatus: $httpStatus, message: $message")
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@LoginActivity,
-                                "Failed to get profile information",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                })
+                }, 100) // 100ms 지연으로 Binder 트랜잭션 완료 대기
             }
 
             override fun onError(errorCode: Int, message: String) {
                 Log.e(TAG, "Naver login failed - errorCode: $errorCode, message: $message")
                 runOnUiThread {
-                    Toast.makeText(
-                        this@LoginActivity,
-                        "Naver login failed: $message",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(
+                            this@LoginActivity,
+                            "Naver login failed: $message",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
 
             override fun onFailure(httpStatus: Int, message: String) {
                 Log.e(TAG, "Naver login failed - httpStatus: $httpStatus, message: $message")
                 runOnUiThread {
-                    Toast.makeText(
-                        this@LoginActivity,
-                        "Naver login failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(
+                            this@LoginActivity,
+                            "Naver login failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
         }
 
-        NaverIdLoginSDK.authenticate(this, oauthLoginCallback)
+        try {
+            NaverIdLoginSDK.authenticate(this, oauthLoginCallback)
+        } catch (e: Exception) {
+            // Binder 트랜잭션 오류 등 예외 처리
+            Log.e(TAG, "Exception during Naver authentication", e)
+            e.printStackTrace()
+            Toast.makeText(this, "Naver login error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -304,15 +346,34 @@ class LoginActivity : AppCompatActivity() {
 
     private fun navigateToMain() {
         Log.d(TAG, "navigateToMain() called")
+
+        // Activity lifecycle 확인
+        if (isFinishing || isDestroyed) {
+            Log.w(TAG, "Activity is finishing or destroyed, aborting navigation")
+            return
+        }
+
         try {
-            val intent = Intent(this, HomeActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
-            finish()
-            Log.d(TAG, "HomeActivity started successfully")
+            // Binder 트랜잭션 완료를 위해 약간 지연
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    try {
+                        val intent = Intent(this, HomeActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                        finish()
+                        Log.d(TAG, "HomeActivity started successfully")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error starting HomeActivity", e)
+                        if (!isFinishing && !isDestroyed) {
+                            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }, 100) // 100ms 지연으로 안전한 화면 전환
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting HomeActivity", e)
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.e(TAG, "Error in navigateToMain", e)
+            e.printStackTrace()
         }
     }
 }
