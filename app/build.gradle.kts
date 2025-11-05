@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.example.receiptify"
         minSdk = 33
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
