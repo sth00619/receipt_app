@@ -2,6 +2,7 @@ package com.example.receiptify.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +14,7 @@ import com.example.receiptify.databinding.ActivityHomeBinding
 import com.example.receiptify.model.Transaction
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.navercorp.nid.NaverIdLoginSDK
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -25,24 +27,42 @@ class HomeActivity : AppCompatActivity() {
 
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
 
+    companion object {
+        private const val TAG = "HomeActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        Log.d(TAG, "HomeActivity onCreate called")
+
         authManager = FirebaseAuthManager.getInstance()
         firestore = FirebaseFirestore.getInstance()
 
-        // 로그인 확인
-        if (authManager.currentUser == null) {
+        // 로그인 확인 - Firebase와 Naver 모두 체크
+        if (!isUserLoggedIn()) {
+            Log.d(TAG, "User not logged in, navigating to LoginActivity")
             navigateToLogin()
             return
         }
 
+        Log.d(TAG, "User is logged in, setting up HomeActivity")
         setupUI()
         setupRecyclerView()
         loadTransactions()
         setupClickListeners()
+    }
+
+    private fun isUserLoggedIn(): Boolean {
+        val firebaseUser = authManager.currentUser
+        val naverToken = NaverIdLoginSDK.getAccessToken()
+
+        Log.d(TAG, "Login check - Firebase: ${firebaseUser != null}, Naver: ${naverToken != null}")
+
+        // Firebase 사용자가 있거나 Naver 토큰이 있으면 로그인된 것으로 간주
+        return firebaseUser != null || naverToken != null
     }
 
     private fun setupUI() {
@@ -109,7 +129,14 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun loadTransactions() {
-        val userId = authManager.currentUser?.uid ?: return
+        val userId = authManager.currentUser?.uid
+
+        if (userId == null) {
+            // Firebase 사용자가 없으면 (Naver 로그인인 경우) 임시 데이터 표시
+            Log.d(TAG, "No Firebase user, showing empty state")
+            showEmptyState()
+            return
+        }
 
         firestore.collection("transactions")
             .whereEqualTo("userId", userId)
@@ -117,6 +144,7 @@ class HomeActivity : AppCompatActivity() {
             .limit(5)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.e(TAG, "Error loading transactions: ${error.message}")
                     showEmptyState()
                     return@addSnapshotListener
                 }
@@ -158,7 +186,15 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun navigateToLogin() {
-        startActivity(Intent(this, LoginActivity::class.java))
+        val intent = Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
         finish()
+    }
+
+    override fun onBackPressed() {
+        // 뒤로가기 버튼을 누르면 앱 종료 (LoginActivity로 돌아가지 않도록)
+        finishAffinity()
     }
 }
