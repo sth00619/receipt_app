@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.receiptify.R
@@ -53,6 +54,18 @@ class HomeActivity : AppCompatActivity() {
         setupRecyclerView()
         loadTransactions()
         setupClickListeners()
+        setupBackPressHandler()
+    }
+
+    private fun setupBackPressHandler() {
+        // 최신 방식의 뒤로가기 처리
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // 뒤로가기 버튼을 누르면 앱 종료
+                Log.d(TAG, "Back pressed - finishing app")
+                finishAffinity()
+            }
+        })
     }
 
     private fun isUserLoggedIn(): Boolean {
@@ -191,10 +204,5 @@ class HomeActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
-    }
-
-    override fun onBackPressed() {
-        // 뒤로가기 버튼을 누르면 앱 종료 (LoginActivity로 돌아가지 않도록)
-        finishAffinity()
     }
 }

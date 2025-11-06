@@ -1,6 +1,8 @@
 package com.example.receiptify.ui
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -25,18 +27,17 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private lateinit var authManager: FirebaseAuthManager
     private lateinit var googleSignInClient: GoogleSignInClient
+    private lateinit var prefs: SharedPreferences
 
-    // 무한 루프 방지를 위한 플래그
     private var isNavigating = false
 
     companion object {
         private const val TAG = "LoginActivity"
         private const val RC_GOOGLE_SIGN_IN = 9001
+        private const val PREFS_NAME = "receiptify_auth"
+        private const val KEY_NAVER_LOGGED_IN = "naver_logged_in"
 
-        // Google Web Client ID
         private const val GOOGLE_WEB_CLIENT_ID = "763595991477-k7es3foiml6lknn646mqk7fnehhqd0d8.apps.googleusercontent.com"
-
-        // Naver OAuth
         private const val NAVER_CLIENT_ID = "4_hKHdQVR0VetSVY9IHn"
         private const val NAVER_CLIENT_SECRET = "ktALIseJP6"
         private const val NAVER_CLIENT_NAME = "Receiptify"
@@ -44,63 +45,52 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+
+        Log.d(TAG, "onCreate started")
 
         authManager = FirebaseAuthManager.getInstance()
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         setupGoogleSignIn()
         setupNaverSignIn()
-        setupClickListeners()
 
-        // onCreate에서 한 번만 로그인 상태 확인
-        checkLoginStatus()
+        checkLoginStatusAndProceed()
+    }
+
+    private fun checkLoginStatusAndProceed() {
+        if (isNavigating) {
+            Log.d(TAG, "Already navigating, skip checkLoginStatus")
+            return
+        }
+
+        val firebaseUser = authManager.currentUser
+        val naverLoggedIn = prefs.getBoolean(KEY_NAVER_LOGGED_IN, false)
+        val naverToken = NaverIdLoginSDK.getAccessToken()
+
+        Log.d(TAG, "checkLoginStatus - Firebase: ${firebaseUser != null}, Naver Pref: $naverLoggedIn, Naver Token: ${naverToken != null}")
+
+        if (firebaseUser != null || naverLoggedIn) {
+            Log.d(TAG, "User already logged in, navigating to HomeActivity directly")
+            navigateToMain()
+        } else {
+            Log.d(TAG, "User not logged in, showing login screen")
+            binding = ActivityLoginBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            setupClickListeners()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Log.d(TAG, "onNewIntent called")
         setIntent(intent)
-
-        // Naver OAuth 콜백 처리
         handleNaverOAuthCallback()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume called")
-
-        // onResume에서는 로그인 상태 확인하지 않음 (무한 루프 방지)
-        // 대신 onCreate와 onNewIntent에서만 확인
-    }
-
-    private fun checkLoginStatus() {
-        // 이미 화면 전환 중이면 중복 체크 방지
-        if (isNavigating) {
-            Log.d(TAG, "Already navigating, skip checkLoginStatus")
-            return
-        }
-
-        // Firebase 로그인 확인
-        val firebaseUser = authManager.currentUser
-
-        // Naver 로그인 확인
-        val naverAccessToken = NaverIdLoginSDK.getAccessToken()
-
-        Log.d(TAG, "checkLoginStatus - Firebase user: ${firebaseUser?.email}, Naver token: ${naverAccessToken != null}")
-
-        if (firebaseUser != null || naverAccessToken != null) {
-            Log.d(TAG, "User already logged in, navigating to HomeActivity")
-            navigateToMain()
-        }
     }
 
     private fun handleNaverOAuthCallback() {
         val uri = intent?.data
         if (uri != null && uri.scheme == "naverlogin" && uri.host == "oauth") {
             Log.d(TAG, "Naver OAuth callback detected: $uri")
-
-            // 콜백 후 프로필 정보 가져오기
             getNaverUserProfile()
         }
     }
@@ -125,7 +115,6 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 이메일 로그인
         binding.btnLogin.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
@@ -135,17 +124,14 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        // Google 로그인
         binding.btnGoogleLogin.setOnClickListener {
             signInWithGoogle()
         }
 
-        // Naver 로그인
         binding.btnNaverLogin.setOnClickListener {
             signInWithNaver()
         }
 
-        // 회원가입 화면으로 이동
         binding.tvSignUp.setOnClickListener {
             startActivity(Intent(this, SignUpActivity::class.java))
         }
@@ -206,13 +192,32 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun signInWithNaver() {
-        Log.d(TAG, "Naver login button clicked")
+        Log.d(TAG, "==================================================")
+        Log.d(TAG, "🔵 Naver login button clicked")
+
+        // SharedPreferences 플래그 확인
+        val naverLoggedIn = prefs.getBoolean(KEY_NAVER_LOGGED_IN, false)
+
+        Log.d(TAG, "Naver logged in flag: $naverLoggedIn")
+
+        if (naverLoggedIn) {
+            Log.d(TAG, "✅ Already logged in (from pref) - Skipping authentication")
+            Log.d(TAG, "==================================================")
+            Toast.makeText(
+                this,
+                "이미 로그인되어 있습니다",
+                Toast.LENGTH_SHORT
+            ).show()
+            navigateToMain()
+            return
+        }
+
+        Log.d(TAG, "❌ Not logged in - Starting Naver authentication")
+        Log.d(TAG, "==================================================")
 
         val oauthLoginCallback = object : OAuthLoginCallback {
             override fun onSuccess() {
                 Log.d(TAG, "Naver OAuth success - Access token received")
-
-                // 프로필 정보 가져오기
                 getNaverUserProfile()
             }
 
@@ -239,7 +244,6 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        // Naver 로그인 시작
         NaverIdLoginSDK.authenticate(this, oauthLoginCallback)
     }
 
@@ -260,6 +264,10 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "=".repeat(50))
 
                 runOnUiThread {
+                    // 로그인 플래그 저장
+                    prefs.edit().putBoolean(KEY_NAVER_LOGGED_IN, true).apply()
+                    Log.d(TAG, "✅ Naver login flag saved")
+
                     Toast.makeText(
                         this@LoginActivity,
                         "네이버 로그인 성공!\n환영합니다, ${name ?: "사용자"}님",
@@ -346,7 +354,6 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateToMain() {
-        // 이미 화면 전환 중이면 중복 실행 방지
         if (isNavigating) {
             Log.d(TAG, "Already navigating, skip duplicate call")
             return
@@ -369,7 +376,7 @@ class LoginActivity : AppCompatActivity() {
             Log.d(TAG, "HomeActivity started and LoginActivity finished")
 
         } catch (e: Exception) {
-            isNavigating = false  // 실패 시 플래그 리셋
+            isNavigating = false
 
             Log.e(TAG, "=".repeat(50))
             Log.e(TAG, "ERROR starting HomeActivity: ${e.message}", e)
