@@ -61,6 +61,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
 
+    // 🔹 ML Kit - 한글 OCR(문자인식) 기능
+    implementation("com.google.mlkit:text-recognition-korean:16.0.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
