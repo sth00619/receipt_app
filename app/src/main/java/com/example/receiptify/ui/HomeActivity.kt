@@ -96,9 +96,10 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 영수증 스캔
+        // 영수증 스캔 - ReceiptScanActivity로 이동
         binding.cardScanReceipt.setOnClickListener {
-            Toast.makeText(this, R.string.scan_receipt_coming_soon, Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "Scan receipt button clicked")
+            startActivity(Intent(this, ReceiptScanActivity::class.java))
         }
 
         // 영수증 내역 보기
@@ -128,7 +129,8 @@ class HomeActivity : AppCompatActivity() {
                     false
                 }
                 R.id.nav_receipts -> {
-                    Toast.makeText(this, R.string.feature_coming_soon, Toast.LENGTH_SHORT).show()
+                    // 영수증 화면으로 이동
+                    startActivity(Intent(this, ReceiptScanActivity::class.java))
                     false
                 }
                 R.id.nav_profile -> {

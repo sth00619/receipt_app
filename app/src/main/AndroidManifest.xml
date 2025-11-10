@@ -14,7 +14,6 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-
     <application
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
@@ -26,16 +25,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Receiptify"
         tools:targetApi="31">
-    <provider
-        android:name="androidx.core.content.FileProvider"
-        android:authorities="${applicationId}.fileprovider"
-        android:exported="false"
-        android:grantUriPermissions="true">
-        <meta-data
-            android:name="android.support.FILE_PROVIDER_PATHS"
-            android:resource="@xml/file_paths" />
-    </provider>
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Login Activity (Launcher) -->
         <activity
@@ -43,19 +42,19 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="portrait">
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.MAIN" />-->
-<!--                <category android:name="android.intent.category.LAUNCHER" />-->
-<!--            </intent-filter>-->
-<!--            &lt;!&ndash; Naver OAuth Callback &ndash;&gt;-->
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.VIEW" />-->
-<!--                <category android:name="android.intent.category.DEFAULT" />-->
-<!--                <category android:name="android.intent.category.BROWSABLE" />-->
-<!--                <data-->
-<!--                    android:host="oauth"-->
-<!--                    android:scheme="naverlogin" />-->
-<!--            </intent-filter>-->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Naver OAuth Callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:scheme="naverlogin" />
+            </intent-filter>
         </activity>
 
         <!-- Sign Up Activity -->
@@ -76,17 +75,17 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!-- Receipt Scan Activity (OCR 기능) -->
+        <activity
+            android:name=".ui.ReceiptScanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
-        <!-- Ocr Test Activity -->
+        <!-- Ocr Test Activity (개발용) -->
         <activity
             android:name=".ui.OcrTestActivity"
-            android:exported="true"
-            android:screenOrientation="portrait">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
     </application>
 
