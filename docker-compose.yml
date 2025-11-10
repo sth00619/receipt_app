@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: receipt-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: receipt_app
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: receipt-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGO_URI=mongodb://root:example@mongo:27017/receipt_app?authSource=admin
+    depends_on:
+      - mongo
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+
+volumes:
+  mongo_data:
