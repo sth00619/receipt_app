@@ -69,7 +69,13 @@ class LoginActivity : AppCompatActivity() {
 
         Log.d(TAG, "checkLoginStatus - Firebase: ${firebaseUser != null}, Naver Pref: $naverLoggedIn, Naver Token: ${naverToken != null}")
 
-        if (firebaseUser != null || naverLoggedIn) {
+        // 🔥 중요: 이미 LoginActivity UI가 표시되었다면 자동 이동하지 않음
+        if (::binding.isInitialized) {
+            Log.d(TAG, "Login UI already initialized, staying on LoginActivity")
+            return
+        }
+
+        if (firebaseUser != null || (naverLoggedIn && naverToken != null)) {
             Log.d(TAG, "User already logged in, navigating to HomeActivity directly")
             navigateToMain()
         } else {

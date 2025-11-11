@@ -1,5 +1,6 @@
 package com.example.receiptify.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -71,11 +72,13 @@ class HomeActivity : AppCompatActivity() {
     private fun isUserLoggedIn(): Boolean {
         val firebaseUser = authManager.currentUser
         val naverToken = NaverIdLoginSDK.getAccessToken()
+        val naverPref = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
+            .getBoolean("naver_logged_in", false)
 
-        Log.d(TAG, "Login check - Firebase: ${firebaseUser != null}, Naver: ${naverToken != null}")
+        Log.d(TAG, "Login check - Firebase: ${firebaseUser != null}, Naver Token: ${naverToken != null}, Naver Pref: $naverPref")
 
-        // Firebase 사용자가 있거나 Naver 토큰이 있으면 로그인된 것으로 간주
-        return firebaseUser != null || naverToken != null
+        // Firebase 사용자가 있거나 (Naver 토큰과 Pref 플래그 둘 다 있으면) 로그인된 것으로 간주
+        return firebaseUser != null || (naverToken != null && naverPref)
     }
 
     private fun setupUI() {

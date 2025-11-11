@@ -2,13 +2,11 @@ package com.example.receiptify.ui
 
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
-import com.example.receiptify.R
 import com.example.receiptify.ocr.OcrEngine
 import com.example.receiptify.ocr.ReceiptParser
 import kotlinx.coroutines.launch
@@ -17,7 +15,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.core.content.ContextCompat
-import android.widget.Toast
 import com.example.receiptify.databinding.ActivityOcrTestBinding
 
 class OcrTestActivity : AppCompatActivity() {
@@ -37,7 +34,11 @@ class OcrTestActivity : AppCompatActivity() {
     private val takePicture = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { ok ->
-        if (ok && tempPhotoUri != null) runOcr(tempPhotoUri!!)
+        if (ok && tempPhotoUri != null) {
+            runOcr(tempPhotoUri!!)
+            // 사용 후 임시 파일 삭제
+            deleteTempFile(tempPhotoUri!!)
+        }
     }
 
     // 임시 이미지 파일을 생성하고 FileProvider를 통해 content:// URI 발급
@@ -51,6 +52,18 @@ class OcrTestActivity : AppCompatActivity() {
             "${packageName}.fileprovider",
             file
         )
+    }
+
+    // 임시 파일 삭제
+    private fun deleteTempFile(uri: Uri) {
+        try {
+            val file = File(uri.path ?: return)
+            if (file.exists()) {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // 갤러리 접근 권한 요청 런처
@@ -70,7 +83,9 @@ class OcrTestActivity : AppCompatActivity() {
     }
 
     // 카메라 권한 요청 런처
-    private val requestCameraPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    private val requestCameraPerm = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
         if (granted) {
             tempPhotoUri = createTempImageUri()
             tempPhotoUri?.let { takePicture.launch(it) }
@@ -128,7 +143,6 @@ class OcrTestActivity : AppCompatActivity() {
         binding.btnPick.isEnabled = !busy
         binding.btnCamera.isEnabled = !busy
         if (busy) {
-
             binding.tvParsed.text = "인식 중… 잠시만요"
         }
     }
@@ -152,8 +166,15 @@ class OcrTestActivity : AppCompatActivity() {
                 binding.tvParsed.text = "OCR 실패: ${e.message}"
             } finally {
                 setBusy(false)
+                // 메모리 정리
+                System.gc()
             }
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // 앱 종료 시 임시 파일 정리
+        tempPhotoUri?.let { deleteTempFile(it) }
+    }
 }

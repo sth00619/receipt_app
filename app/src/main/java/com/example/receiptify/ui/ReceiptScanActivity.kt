@@ -16,7 +16,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.core.content.ContextCompat
-import com.example.receiptify.R
 
 class ReceiptScanActivity : AppCompatActivity() {
     private lateinit var binding: ActivityReceiptScanBinding
@@ -35,7 +34,11 @@ class ReceiptScanActivity : AppCompatActivity() {
     private val takePicture = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { ok ->
-        if (ok && tempPhotoUri != null) runOcr(tempPhotoUri!!)
+        if (ok && tempPhotoUri != null) {
+            runOcr(tempPhotoUri!!)
+            // 사용 후 임시 파일 삭제
+            deleteTempFile(tempPhotoUri!!)
+        }
     }
 
     // 임시 이미지 파일 생성
@@ -49,6 +52,18 @@ class ReceiptScanActivity : AppCompatActivity() {
             "${packageName}.fileprovider",
             file
         )
+    }
+
+    // 임시 파일 삭제
+    private fun deleteTempFile(uri: Uri) {
+        try {
+            val file = File(uri.path ?: return)
+            if (file.exists()) {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // 갤러리 접근 권한 요청
@@ -194,7 +209,15 @@ class ReceiptScanActivity : AppCompatActivity() {
                 ).show()
             } finally {
                 setBusy(false)
+                // 메모리 정리
+                System.gc()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 앱 종료 시 임시 파일 정리
+        tempPhotoUri?.let { deleteTempFile(it) }
     }
 }
