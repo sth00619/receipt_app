@@ -57,12 +57,25 @@ dependencies {
     // Naver OAuth
     implementation("com.navercorp.nid:oauth:5.9.1")
 
+    // Chrome Custom Tabs 지원
+    implementation("androidx.browser:browser:1.8.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
 
     // 🔹 ML Kit - 한글 OCR(문자인식) 기능
     implementation("com.google.mlkit:text-recognition-korean:16.0.0")
+
+    // Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

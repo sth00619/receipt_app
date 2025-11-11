@@ -1,0 +1,16 @@
+# Firebase 서비스 계정 키
+src/config/firebase-service-account.json
+src/config/*.json
+
+# 환경 변수
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store

@@ -14,6 +14,24 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!-- ====================================== -->
+    <!-- 🔑 Chrome 브라우저 쿼리 (Android 11+) -->
+    <!-- ====================================== -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+
+        <!-- Chrome 패키지 -->
+        <package android:name="com.android.chrome" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:largeHeap="true"
@@ -27,6 +45,7 @@
         android:theme="@style/Theme.Receiptify"
         tools:targetApi="31">
 
+        <!-- FileProvider for camera/gallery -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -37,24 +56,47 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- ====================================== -->
+        <!-- 🔑 네이버 OAuth Activity (필수!) -->
+        <!-- ====================================== -->
+        <activity
+            android:name="com.navercorp.nid.oauth.NidOAuthLoginActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            tools:node="replace" />
+
         <!-- Login Activity (Launcher) -->
         <activity
             android:name=".ui.LoginActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- Main Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Naver OAuth Callback -->
+
+            <!-- 🔑 네이버 OAuth Callback (패키지명 기반) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:host="oauth"
-                    android:scheme="naverlogin" />
+                    android:scheme="com.example.receiptify"
+                    android:host="oauth" />
+            </intent-filter>
+
+            <!-- 🔑 네이버 OAuth Callback (커스텀 스킴) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="naverlogin"
+                    android:host="oauth" />
             </intent-filter>
         </activity>
 
@@ -62,7 +104,8 @@
         <activity
             android:name=".ui.SignUpActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Home Activity -->
         <activity

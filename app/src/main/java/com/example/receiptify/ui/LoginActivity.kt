@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.receiptify.R
 import com.example.receiptify.auth.FirebaseAuthManager
 import com.example.receiptify.databinding.ActivityLoginBinding
+import com.example.receiptify.repository.UserRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -28,6 +31,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var authManager: FirebaseAuthManager
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var prefs: SharedPreferences
+    private lateinit var userRepository: UserRepository
 
     private var isNavigating = false
 
@@ -46,15 +50,104 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        Log.d(TAG, "=================================================")
         Log.d(TAG, "onCreate started")
+        Log.d(TAG, "Intent: ${intent}")
+        Log.d(TAG, "Intent Data: ${intent?.data}")
+        Log.d(TAG, "=================================================")
 
         authManager = FirebaseAuthManager.getInstance()
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        userRepository = UserRepository()
 
         setupGoogleSignIn()
         setupNaverSignIn()
 
+        // 🔍 인텐트 데이터 확인 (네이버 콜백)
+        handleNaverOAuthCallback()
+
         checkLoginStatusAndProceed()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Log.d(TAG, "=================================================")
+        Log.d(TAG, "onNewIntent called")
+        Log.d(TAG, "Intent: ${intent}")
+        Log.d(TAG, "Intent Data: ${intent.data}")
+        Log.d(TAG, "=================================================")
+        setIntent(intent)
+        handleNaverOAuthCallback()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "=================================================")
+        Log.d(TAG, "onResume called")
+        Log.d(TAG, "Intent: ${intent}")
+        Log.d(TAG, "Intent Data: ${intent?.data}")
+        Log.d(TAG, "=================================================")
+
+        // OAuth 콜백 처리
+        handleNaverOAuthCallback()
+    }
+
+    private fun handleNaverOAuthCallback() {
+        val uri = intent?.data
+        Log.d(TAG, "=================================================")
+        Log.d(TAG, "handleNaverOAuthCallback called")
+        Log.d(TAG, "Intent Data URI: $uri")
+
+        if (uri != null) {
+            Log.d(TAG, "URI Details:")
+            Log.d(TAG, "  Scheme: ${uri.scheme}")
+            Log.d(TAG, "  Host: ${uri.host}")
+            Log.d(TAG, "  Path: ${uri.path}")
+            Log.d(TAG, "  Query: ${uri.query}")
+
+            // 패키지명 기반 또는 naverlogin 둘 다 처리
+            val isNaverCallback = (uri.scheme == "com.example.receiptify" || uri.scheme == "naverlogin")
+                    && uri.host == "oauth"
+
+            Log.d(TAG, "Is Naver Callback: $isNaverCallback")
+
+            if (isNaverCallback) {
+                Log.d(TAG, "✅✅✅ Naver OAuth callback detected! ✅✅✅")
+
+                // 토큰 확인
+                val token = NaverIdLoginSDK.getAccessToken()
+                Log.d(TAG, "Access Token: ${if (token != null) "EXISTS (${token.take(20)}...)" else "NULL"}")
+
+                if (token != null) {
+                    Log.d(TAG, "✅ Token exists, calling getNaverUserProfile()")
+                    getNaverUserProfile()
+                } else {
+                    Log.e(TAG, "❌ Token is null after OAuth callback")
+
+                    // 약간의 딜레이 후 재시도
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        val retryToken = NaverIdLoginSDK.getAccessToken()
+                        Log.d(TAG, "Retry Token: ${if (retryToken != null) "EXISTS" else "NULL"}")
+
+                        if (retryToken != null) {
+                            Log.d(TAG, "✅ Token available on retry")
+                            getNaverUserProfile()
+                        } else {
+                            Toast.makeText(
+                                this,
+                                "로그인 처리 중 오류가 발생했습니다",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }, 500)
+                }
+            } else {
+                Log.d(TAG, "❌ Not a Naver OAuth callback")
+            }
+        } else {
+            Log.d(TAG, "Intent data is null - no callback URI")
+        }
+        Log.d(TAG, "=================================================")
     }
 
     private fun checkLoginStatusAndProceed() {
@@ -83,21 +176,6 @@ class LoginActivity : AppCompatActivity() {
             binding = ActivityLoginBinding.inflate(layoutInflater)
             setContentView(binding.root)
             setupClickListeners()
-        }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        Log.d(TAG, "onNewIntent called")
-        setIntent(intent)
-        handleNaverOAuthCallback()
-    }
-
-    private fun handleNaverOAuthCallback() {
-        val uri = intent?.data
-        if (uri != null && uri.scheme == "naverlogin" && uri.host == "oauth") {
-            Log.d(TAG, "Naver OAuth callback detected: $uri")
-            getNaverUserProfile()
         }
     }
 
@@ -173,12 +251,8 @@ class LoginActivity : AppCompatActivity() {
                 val result = authManager.signInWithEmail(email, password)
 
                 result.onSuccess {
-                    Toast.makeText(
-                        this@LoginActivity,
-                        getString(R.string.login_success),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    navigateToMain()
+                    // ✨ MongoDB와 사용자 동기화
+                    syncUserWithMongoDB()
                 }.onFailure { exception ->
                     Toast.makeText(
                         this@LoginActivity,
@@ -201,19 +275,13 @@ class LoginActivity : AppCompatActivity() {
         Log.d(TAG, "==================================================")
         Log.d(TAG, "🔵 Naver login button clicked")
 
-        // SharedPreferences 플래그 확인
         val naverLoggedIn = prefs.getBoolean(KEY_NAVER_LOGGED_IN, false)
-
         Log.d(TAG, "Naver logged in flag: $naverLoggedIn")
 
         if (naverLoggedIn) {
             Log.d(TAG, "✅ Already logged in (from pref) - Skipping authentication")
             Log.d(TAG, "==================================================")
-            Toast.makeText(
-                this,
-                "이미 로그인되어 있습니다",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "이미 로그인되어 있습니다", Toast.LENGTH_SHORT).show()
             navigateToMain()
             return
         }
@@ -223,12 +291,33 @@ class LoginActivity : AppCompatActivity() {
 
         val oauthLoginCallback = object : OAuthLoginCallback {
             override fun onSuccess() {
-                Log.d(TAG, "Naver OAuth success - Access token received")
-                getNaverUserProfile()
+                Log.d(TAG, "=================================================")
+                Log.d(TAG, "✅✅✅ Naver OAuth SUCCESS (Callback) ✅✅✅")
+                val token = NaverIdLoginSDK.getAccessToken()
+                Log.d(TAG, "Access Token: ${if (token != null) "EXISTS (${token.take(20)}...)" else "NULL"}")
+                Log.d(TAG, "=================================================")
+
+                if (token != null) {
+                    getNaverUserProfile()
+                } else {
+                    Log.e(TAG, "❌ Token is null in onSuccess callback!")
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@LoginActivity,
+                            "토큰을 받지 못했습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
 
             override fun onError(errorCode: Int, message: String) {
-                Log.e(TAG, "Naver OAuth error - errorCode: $errorCode, message: $message")
+                Log.e(TAG, "=================================================")
+                Log.e(TAG, "❌❌❌ Naver OAuth ERROR ❌❌❌")
+                Log.e(TAG, "Error Code: $errorCode")
+                Log.e(TAG, "Message: $message")
+                Log.e(TAG, "=================================================")
+
                 runOnUiThread {
                     Toast.makeText(
                         this@LoginActivity,
@@ -239,7 +328,12 @@ class LoginActivity : AppCompatActivity() {
             }
 
             override fun onFailure(httpStatus: Int, message: String) {
-                Log.e(TAG, "Naver OAuth failure - httpStatus: $httpStatus, message: $message")
+                Log.e(TAG, "=================================================")
+                Log.e(TAG, "❌❌❌ Naver OAuth FAILURE ❌❌❌")
+                Log.e(TAG, "HTTP Status: $httpStatus")
+                Log.e(TAG, "Message: $message")
+                Log.e(TAG, "=================================================")
+
                 runOnUiThread {
                     Toast.makeText(
                         this@LoginActivity,
@@ -270,7 +364,6 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "=".repeat(50))
 
                 runOnUiThread {
-                    // 로그인 플래그 저장
                     prefs.edit().putBoolean(KEY_NAVER_LOGGED_IN, true).apply()
                     Log.d(TAG, "✅ Naver login flag saved")
 
@@ -343,18 +436,57 @@ class LoginActivity : AppCompatActivity() {
             val result = authManager.signInWithGoogle(idToken)
 
             result.onSuccess {
-                Toast.makeText(
-                    this@LoginActivity,
-                    getString(R.string.login_success),
-                    Toast.LENGTH_SHORT
-                ).show()
-                navigateToMain()
+                // ✨ MongoDB와 사용자 동기화
+                syncUserWithMongoDB()
             }.onFailure { exception ->
                 Toast.makeText(
                     this@LoginActivity,
                     exception.message ?: getString(R.string.error_google_signin),
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+    }
+
+    // ✨ 새로운 함수: MongoDB 사용자 동기화
+    private fun syncUserWithMongoDB() {
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "🔄 MongoDB 사용자 동기화 시작...")
+
+                val syncResult = userRepository.syncUser()
+
+                syncResult.onSuccess { user ->
+                    Log.d(TAG, "✅ MongoDB 동기화 완료: ${user.email}")
+
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "환영합니다, ${user.displayName ?: user.email}님!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    navigateToMain()
+
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ MongoDB 동기화 실패", error)
+
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "로그인 성공! (동기화는 나중에 자동으로 됩니다)",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    navigateToMain()
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "동기화 중 오류", e)
+                Toast.makeText(
+                    this@LoginActivity,
+                    getString(R.string.login_success),
+                    Toast.LENGTH_SHORT
+                ).show()
+                navigateToMain()
             }
         }
     }

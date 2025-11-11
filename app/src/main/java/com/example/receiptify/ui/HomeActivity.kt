@@ -8,24 +8,29 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.receiptify.R
 import com.example.receiptify.adapter.TransactionAdapter
 import com.example.receiptify.auth.FirebaseAuthManager
 import com.example.receiptify.databinding.ActivityHomeBinding
 import com.example.receiptify.model.Transaction
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import com.example.receiptify.repository.ReceiptRepository
+import com.example.receiptify.repository.UserRepository
 import com.navercorp.nid.NaverIdLoginSDK
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
     private lateinit var authManager: FirebaseAuthManager
-    private lateinit var firestore: FirebaseFirestore
     private lateinit var transactionAdapter: TransactionAdapter
+    private lateinit var receiptRepository: ReceiptRepository
+    private lateinit var userRepository: UserRepository
 
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
 
@@ -41,7 +46,8 @@ class HomeActivity : AppCompatActivity() {
         Log.d(TAG, "HomeActivity onCreate called")
 
         authManager = FirebaseAuthManager.getInstance()
-        firestore = FirebaseFirestore.getInstance()
+        receiptRepository = ReceiptRepository()
+        userRepository = UserRepository()
 
         // 로그인 확인 - Firebase와 Naver 모두 체크
         if (!isUserLoggedIn()) {
@@ -53,7 +59,7 @@ class HomeActivity : AppCompatActivity() {
         Log.d(TAG, "User is logged in, setting up HomeActivity")
         setupUI()
         setupRecyclerView()
-        loadTransactions()
+        loadDataFromMongoDB()  // ✨ MongoDB에서 데이터 로드
         setupClickListeners()
         setupBackPressHandler()
     }
@@ -84,10 +90,6 @@ class HomeActivity : AppCompatActivity() {
     private fun setupUI() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
-
-        // 임시 데이터 표시
-        updateMonthlyData(226000, 12, true)
-        updateTodaySpending(18500)
     }
 
     private fun setupRecyclerView() {
@@ -95,6 +97,111 @@ class HomeActivity : AppCompatActivity() {
         binding.rvRecentTransactions.apply {
             layoutManager = LinearLayoutManager(this@HomeActivity)
             adapter = transactionAdapter
+        }
+    }
+
+    // ✨ MongoDB에서 실제 로그인한 사용자 데이터 로드
+    private fun loadDataFromMongoDB() {
+        // ✅ 실제 Firebase 사용자 UID 사용
+        val userId = authManager.currentUser?.uid
+
+        if (userId == null) {
+            Log.e(TAG, "❌ 사용자 ID가 없습니다 (Naver 로그인 또는 미로그인)")
+            // Naver 로그인이거나 로그인 안된 상태
+            showEmptyState()
+            updateMonthlyData(0, 0, true)
+            updateTodaySpending(0)
+            return
+        }
+
+        Log.d(TAG, "✅ 로그인된 사용자 ID: $userId")
+
+        lifecycleScope.launch {
+            try {
+                // 1. 영수증 목록 조회 (더 이상 userId 파라미터 불필요 - 토큰에서 자동 추출)
+                val receiptsResult = receiptRepository.getReceipts(limit = 5)
+
+                receiptsResult.onSuccess { receipts ->
+                    Log.d(TAG, "✅ ${receipts.size}개 영수증 로드 완료")
+
+                    if (receipts.isEmpty()) {
+                        showEmptyState()
+                    } else {
+                        hideEmptyState()
+
+                        val transactions = receipts.map { receipt ->
+                            Transaction(
+                                id = receipt.id,
+                                storeName = receipt.storeName,
+                                category = receipt.category,
+                                amount = receipt.totalAmount.toLong(),
+                                date = parseDate(receipt.transactionDate),
+                                userId = userId
+                            )
+                        }
+
+                        transactionAdapter.submitList(transactions)
+                    }
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ 영수증 로드 실패", error)
+
+                    if (error.message?.contains("401") == true ||
+                        error.message?.contains("Token") == true ||
+                        error.message?.contains("Unauthorized") == true) {
+                        // 토큰 만료 - 다시 로그인
+                        Toast.makeText(
+                            this@HomeActivity,
+                            "세션이 만료되었습니다. 다시 로그인해주세요.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        navigateToLogin()
+                    } else {
+                        Toast.makeText(
+                            this@HomeActivity,
+                            "데이터를 불러오는데 실패했습니다: ${error.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        showEmptyState()
+                    }
+                }
+
+                // 2. 통계 조회
+                val statsResult = receiptRepository.getStats()
+
+                statsResult.onSuccess { stats ->
+                    Log.d(TAG, "✅ 통계 로드 완료: ${stats.total.totalAmount}")
+
+                    val totalAmount = stats.total.totalAmount.toLong()
+                    updateMonthlyData(totalAmount, 12, true)
+
+                    val todayAmount = (totalAmount / 30).coerceAtLeast(0)
+                    updateTodaySpending(todayAmount)
+
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ 통계 로드 실패", error)
+                    updateMonthlyData(0, 0, true)
+                    updateTodaySpending(0)
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 데이터 로드 중 오류", e)
+                Toast.makeText(
+                    this@HomeActivity,
+                    "오류가 발생했습니다",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    // 날짜 파싱 헬퍼 함수
+    private fun parseDate(dateString: String): Long {
+        return try {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                .parse(dateString)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            Log.e(TAG, "날짜 파싱 실패: $dateString", e)
+            System.currentTimeMillis()
         }
     }
 
@@ -144,38 +251,6 @@ class HomeActivity : AppCompatActivity() {
                 else -> false
             }
         }
-    }
-
-    private fun loadTransactions() {
-        val userId = authManager.currentUser?.uid
-
-        if (userId == null) {
-            // Firebase 사용자가 없으면 (Naver 로그인인 경우) 임시 데이터 표시
-            Log.d(TAG, "No Firebase user, showing empty state")
-            showEmptyState()
-            return
-        }
-
-        firestore.collection("transactions")
-            .whereEqualTo("userId", userId)
-            .orderBy("date", Query.Direction.DESCENDING)
-            .limit(5)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error loading transactions: ${error.message}")
-                    showEmptyState()
-                    return@addSnapshotListener
-                }
-
-                val transactions = snapshot?.toObjects(Transaction::class.java) ?: emptyList()
-
-                if (transactions.isEmpty()) {
-                    showEmptyState()
-                } else {
-                    hideEmptyState()
-                    transactionAdapter.submitList(transactions)
-                }
-            }
     }
 
     private fun updateMonthlyData(total: Long, percentageChange: Int, isIncrease: Boolean) {
