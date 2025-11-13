@@ -13,3 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
+src/config/firebase-service-account.json
