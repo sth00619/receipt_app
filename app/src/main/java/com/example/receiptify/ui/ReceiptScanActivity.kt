@@ -9,39 +9,37 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.receiptify.databinding.ActivityReceiptScanBinding
 import com.example.receiptify.ocr.OcrEngine
-import com.example.receiptify.ocr.ReceiptParser
+import com.example.receiptify.ocr.AdvancedReceiptParser
 import kotlinx.coroutines.launch
 import java.io.File
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.core.content.ContextCompat
+import android.content.Intent
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ReceiptScanActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityReceiptScanBinding
-
-    // 임시로 촬영한 이미지의 URI 저장용
     private var tempPhotoUri: Uri? = null
+    private var parsedReceiptData: com.example.receiptify.ocr.ParsedReceiptData? = null
 
-    // 갤러리에서 이미지 선택
     private val pickImage = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) runOcr(uri)
     }
 
-    // 카메라 촬영 결과
     private val takePicture = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { ok ->
         if (ok && tempPhotoUri != null) {
             runOcr(tempPhotoUri!!)
-            // 사용 후 임시 파일 삭제
-            deleteTempFile(tempPhotoUri!!)
         }
     }
 
-    // 임시 이미지 파일 생성
     private fun createTempImageUri(): Uri {
         val dir = File(filesDir, "receipts")
         if (!dir.exists()) dir.mkdirs()
@@ -54,19 +52,6 @@ class ReceiptScanActivity : AppCompatActivity() {
         )
     }
 
-    // 임시 파일 삭제
-    private fun deleteTempFile(uri: Uri) {
-        try {
-            val file = File(uri.path ?: return)
-            if (file.exists()) {
-                file.delete()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    // 갤러리 접근 권한 요청
     private val requestPickPerms = registerForActivityResult(
         RequestMultiplePermissions()
     ) { result ->
@@ -82,7 +67,6 @@ class ReceiptScanActivity : AppCompatActivity() {
         }
     }
 
-    // 카메라 권한 요청
     private val requestCameraPerm = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -94,7 +78,6 @@ class ReceiptScanActivity : AppCompatActivity() {
         }
     }
 
-    // 카메라 권한 체크 및 촬영
     private fun ensureCameraPermissionAndShoot() {
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.CAMERA
@@ -108,7 +91,6 @@ class ReceiptScanActivity : AppCompatActivity() {
         }
     }
 
-    // 갤러리 접근 권한 체크
     private fun ensurePermissionsAndPickImage() {
         val galleryPerm = if (android.os.Build.VERSION.SDK_INT >= 33)
             Manifest.permission.READ_MEDIA_IMAGES
@@ -146,53 +128,37 @@ class ReceiptScanActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 갤러리에서 선택
         binding.btnGallery.setOnClickListener {
             ensurePermissionsAndPickImage()
         }
 
-        // 카메라로 촬영
         binding.btnCamera.setOnClickListener {
             ensureCameraPermissionAndShoot()
         }
     }
 
-    // OCR 처리 중 버튼 비활성화
     private fun setBusy(busy: Boolean) {
         binding.btnGallery.isEnabled = !busy
         binding.btnCamera.isEnabled = !busy
         if (busy) {
-            binding.tvResult.text = "영수증을 인식하는 중입니다...\n잠시만 기다려주세요."
+            binding.tvResult.text = "🔍 영수증을 인식하는 중입니다...\n잠시만 기다려주세요."
         }
     }
 
-    // OCR 실행
     private fun runOcr(uri: Uri) {
         lifecycleScope.launch {
             try {
                 setBusy(true)
-                val text = OcrEngine.recognize(this@ReceiptScanActivity, uri)
-                val parsed = ReceiptParser.parse(text)
 
-                // 결과 표시
-                binding.tvResult.text = buildString {
-                    appendLine("✅ 영수증 인식 완료!\n")
-                    appendLine("📍 상점명: ${parsed.storeName ?: "인식 실패"}")
-                    appendLine("💰 총액: ${parsed.totalAmount?.let { "₩ ${String.format("%,d", it)}" } ?: "인식 실패"}")
-                    appendLine("📦 품목 수: ${parsed.items.size}개\n")
+                // 1단계: OCR 텍스트 추출
+                val rawText = OcrEngine.recognize(this@ReceiptScanActivity, uri)
 
-                    if (parsed.items.isNotEmpty()) {
-                        appendLine("📋 품목 상세:")
-                        parsed.items.forEachIndexed { index, item ->
-                            appendLine("${index + 1}. ${item.name}")
-                            appendLine("   수량: ${item.qty}개 | 금액: ₩ ${String.format("%,d", item.amount)}")
-                        }
-                    }
+                // 2단계: 고급 파싱
+                val parsedData = AdvancedReceiptParser.parse(rawText)
+                parsedReceiptData = parsedData
 
-                    appendLine("\n" + "=".repeat(30))
-                    appendLine("\n🔍 원본 텍스트:")
-                    appendLine(text)
-                }
+                // 3단계: 결과 표시
+                displayParsedResult(parsedData)
 
                 Toast.makeText(
                     this@ReceiptScanActivity,
@@ -209,15 +175,144 @@ class ReceiptScanActivity : AppCompatActivity() {
                 ).show()
             } finally {
                 setBusy(false)
-                // 메모리 정리
                 System.gc()
             }
         }
     }
 
+    private fun displayParsedResult(data: com.example.receiptify.ocr.ParsedReceiptData) {
+        val dateFormat = SimpleDateFormat("yyyy년 MM월 dd일", Locale.KOREA)
+
+        binding.tvResult.text = buildString {
+            appendLine("✅ 영수증 인식 완료!\n")
+
+            appendLine("═══════════════════════════════")
+            appendLine("📋 기본 정보")
+            appendLine("═══════════════════════════════")
+
+            data.storeName?.let {
+                appendLine("🏪 상점명: $it")
+            } ?: appendLine("🏪 상점명: 인식 실패")
+
+            data.storePhone?.let {
+                appendLine("📞 전화번호: $it")
+            }
+
+            data.storeAddress?.let {
+                appendLine("📍 주소: $it")
+            }
+
+            data.businessNumber?.let {
+                appendLine("🏢 사업자번호: $it")
+            }
+
+            appendLine()
+            appendLine("═══════════════════════════════")
+            appendLine("💰 결제 정보")
+            appendLine("═══════════════════════════════")
+
+            data.transactionDate?.let {
+                appendLine("📅 날짜: ${dateFormat.format(it)}")
+            }
+
+            data.transactionTime?.let {
+                appendLine("⏰ 시간: $it")
+            }
+
+            data.totalAmount?.let {
+                appendLine("💵 총액: ₩ ${String.format("%,d", it)}")
+            } ?: appendLine("💵 총액: 인식 실패")
+
+            data.paymentMethod?.let {
+                val methodName = when(it) {
+                    "card" -> "카드"
+                    "cash" -> "현금"
+                    "transfer" -> "계좌이체"
+                    else -> "기타"
+                }
+                appendLine("💳 결제방법: $methodName")
+            }
+
+            data.cardNumber?.let {
+                appendLine("   카드번호: $it")
+            }
+
+            data.approvalNumber?.let {
+                appendLine("   승인번호: $it")
+            }
+
+            appendLine()
+            appendLine("═══════════════════════════════")
+            appendLine("📦 품목 내역 (${data.items.size}개)")
+            appendLine("═══════════════════════════════")
+
+            if (data.items.isNotEmpty()) {
+                data.items.forEachIndexed { index, item ->
+                    appendLine()
+                    appendLine("${index + 1}. ${item.name}")
+                    appendLine("   수량: ${item.quantity}개")
+                    item.unitPrice?.let {
+                        appendLine("   단가: ₩ ${String.format("%,d", it)}")
+                    }
+                    appendLine("   금액: ₩ ${String.format("%,d", item.totalPrice)}")
+                }
+
+                appendLine()
+                val itemsTotal = data.items.sumOf { it.totalPrice }
+                appendLine("품목 합계: ₩ ${String.format("%,d", itemsTotal)}")
+
+                // 총액과 품목 합계 차이 표시
+                data.totalAmount?.let { total ->
+                    val diff = total - itemsTotal
+                    if (diff != 0) {
+                        appendLine("차액: ₩ ${String.format("%,d", diff)}")
+                        if (diff > 0) {
+                            appendLine("(세금, 봉사료 등 포함)")
+                        }
+                    }
+                }
+            } else {
+                appendLine("품목을 인식하지 못했습니다.")
+            }
+
+            appendLine()
+            appendLine("═══════════════════════════════")
+            appendLine("🏷️ 추천 카테고리")
+            appendLine("═══════════════════════════════")
+
+            val categoryName = when(data.suggestedCategory) {
+                "food" -> "🍔 식비"
+                "transport" -> "🚗 교통"
+                "shopping" -> "🛍️ 쇼핑"
+                else -> "📌 기타"
+            }
+            appendLine(categoryName)
+
+            appendLine()
+            appendLine("═══════════════════════════════")
+            appendLine()
+            appendLine("💡 품목 내역이나 금액이 정확하지 않다면")
+            appendLine("   [저장 및 수정] 버튼을 눌러 수정할 수 있습니다.")
+        }
+
+        // 저장 버튼 표시 (나중에 구현)
+        showSaveButton()
+    }
+
+    private fun showSaveButton() {
+        // TODO: 저장 버튼 UI 추가
+        // 버튼을 누르면 ReceiptEditActivity로 이동하여 수정 가능하도록
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        // 앱 종료 시 임시 파일 정리
-        tempPhotoUri?.let { deleteTempFile(it) }
+        tempPhotoUri?.let {
+            try {
+                val file = File(it.path ?: return@let)
+                if (file.exists()) file.delete()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }
