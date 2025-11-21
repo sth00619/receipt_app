@@ -13,7 +13,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    lowercase: true,  // ✅ 추가: 소문자로 자동 변환
+    trim: true,       // ✅ 추가: 공백 제거
+    // ✅ 정규식 제거 또는 더 관대하게 변경
+    // match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/  // 제거
   },
   // 일반 로그인용 비밀번호 (해시됨)
   password: {
