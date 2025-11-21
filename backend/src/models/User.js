@@ -1,11 +1,12 @@
 // backend/src/models/User.js
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  // Firebase uid는 선택적으로 변경
   uid: {
     type: String,
-    required: true,
-    unique: true,
+    sparse: true,  // unique but can be null
     index: true
   },
   email: {
@@ -14,12 +15,19 @@ const userSchema = new mongoose.Schema({
     unique: true,
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   },
+  // 일반 로그인용 비밀번호 (해시됨)
+  password: {
+    type: String,
+    required: function() {
+      return this.provider === 'email';  // 이메일 로그인인 경우만 필수
+    }
+  },
   displayName: String,
   photoUrl: String,
   provider: {
     type: String,
-    enum: ['firebase', 'google', 'naver'],
-    default: 'firebase'
+    enum: ['email', 'firebase', 'google', 'naver'],
+    default: 'email'
   },
 
   preferences: {
@@ -56,5 +64,23 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// 비밀번호 해싱 미들웨어
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 비밀번호 검증 메서드
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);

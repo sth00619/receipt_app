@@ -1,13 +1,15 @@
 // backend/src/middleware/auth.js
-const { auth } = require('../config/firebase-admin');
+const jwt = require('jsonwebtoken');
+const { auth: firebaseAuth } = require('../config/firebase-admin');
+const User = require('../models/User');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'receiptify_secret_key_change_in_production';
 
 /**
- * Firebase ID Token 검증 미들웨어
- * Authorization 헤더에서 토큰을 추출하고 검증
+ * JWT 토큰 검증 미들웨어 (일반 로그인용)
  */
-const verifyFirebaseToken = async (req, res, next) => {
+const verifyJWT = async (req, res, next) => {
   try {
-    // Authorization 헤더 확인
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -17,28 +19,35 @@ const verifyFirebaseToken = async (req, res, next) => {
       });
     }
 
-    // Bearer 토큰 추출
-    const idToken = authHeader.split('Bearer ')[1];
+    const token = authHeader.split('Bearer ')[1];
 
-    // Firebase에서 토큰 검증
-    const decodedToken = await auth.verifyIdToken(idToken);
+    // JWT 검증
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    // 검증된 사용자 정보를 req에 추가
+    // 사용자 조회
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // req.user에 사용자 정보 추가
     req.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
-      name: decodedToken.name || decodedToken.email.split('@')[0],
-      picture: decodedToken.picture || null,
-      emailVerified: decodedToken.email_verified || false
+      userId: user._id.toString(),
+      email: user.email,
+      displayName: user.displayName
     };
 
-    console.log(`✅ 인증 성공: ${req.user.email} (${req.user.uid})`);
+    console.log(`✅ JWT 인증 성공: ${req.user.email}`);
 
     next();
   } catch (error) {
-    console.error('❌ 토큰 검증 실패:', error.message);
+    console.error('❌ JWT 검증 실패:', error.message);
 
-    if (error.code === 'auth/id-token-expired') {
+    if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Token expired',
@@ -55,33 +64,87 @@ const verifyFirebaseToken = async (req, res, next) => {
 };
 
 /**
- * Optional: 토큰 검증 (선택적 인증)
- * 토큰이 있으면 검증, 없어도 통과
+ * Firebase 또는 JWT 토큰 검증 (둘 다 지원)
  */
-const optionalAuth = async (req, res, next) => {
+const verifyAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await auth.verifyIdToken(idToken);
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+
+    // 먼저 Firebase 토큰인지 확인
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(token);
 
       req.user = {
         uid: decodedToken.uid,
+        userId: decodedToken.uid,  // 호환성을 위해
         email: decodedToken.email,
         name: decodedToken.name || decodedToken.email.split('@')[0],
-        picture: decodedToken.picture || null
+        picture: decodedToken.picture || null,
+        provider: 'firebase'
       };
+
+      console.log(`✅ Firebase 인증 성공: ${req.user.email}`);
+      return next();
+
+    } catch (firebaseError) {
+      // Firebase 토큰이 아니면 JWT 검증 시도
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        const user = await User.findById(decoded.userId).select('-password');
+
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: 'User not found'
+          });
+        }
+
+        req.user = {
+          userId: user._id.toString(),
+          email: user.email,
+          displayName: user.displayName,
+          provider: 'email'
+        };
+
+        console.log(`✅ JWT 인증 성공: ${req.user.email}`);
+        return next();
+
+      } catch (jwtError) {
+        throw jwtError;
+      }
     }
 
-    next();
   } catch (error) {
-    // 토큰이 유효하지 않아도 통과
-    next();
+    console.error('❌ 인증 실패:', error.message);
+
+    if (error.name === 'TokenExpiredError' || error.code === 'auth/id-token-expired') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token',
+      error: error.message
+    });
   }
 };
 
 module.exports = {
-  verifyFirebaseToken,
-  optionalAuth
+  verifyJWT,
+  verifyAuth,
+  verifyFirebaseToken: verifyAuth  // 하위 호환성
 };

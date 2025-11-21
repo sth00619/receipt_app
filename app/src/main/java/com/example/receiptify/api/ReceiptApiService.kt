@@ -6,6 +6,23 @@ import retrofit2.http.*
 
 interface ReceiptApiService {
 
+    // ============ 인증 관련 API ============
+
+    @POST("auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): Response<AuthResponse>
+
+    @POST("auth/login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<AuthResponse>
+
+    @POST("auth/verify")
+    suspend fun verifyToken(
+        @Body request: VerifyTokenRequest
+    ): Response<AuthResponse>
+
     // ============ 사용자 관련 API ============
 
     // 사용자 동기화 (로그인 후 호출)

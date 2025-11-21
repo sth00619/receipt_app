@@ -1,4 +1,3 @@
-// backend/server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,8 +7,8 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // JSON 요청 본문 파싱
+app.use(express.urlencoded({ extended: true })); // URL-encoded 요청 본문 파싱
 
 // Request 로깅
 app.use((req, res, next) => {
@@ -32,6 +31,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Firebase Admin 초기화 테스트
+// (인증 라우트에서 Firebase Auth 토큰 검증 또는 커스텀 토큰 생성을 위해 필요)
 try {
   require('./src/config/firebase-admin');
   console.log('✅ Firebase Admin SDK 초기화 성공');
@@ -52,10 +52,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
+// auth 라우트를 추가합니다.
+const authRoutes = require('./src/routes/auth');
 const userRoutes = require('./src/routes/users');
 const receiptRoutes = require('./src/routes/receipts');
 const transactionRoutes = require('./src/routes/transactions');
 
+app.use('/api/auth', authRoutes); // **인증(Auth) 라우트 추가**
 app.use('/api/users', userRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/transactions', transactionRoutes);

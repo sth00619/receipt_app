@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
+    id("kotlin-kapt")
 }
 
 android {
@@ -56,6 +57,12 @@ dependencies {
 
     // Naver OAuth
     implementation("com.navercorp.nid:oauth:5.9.1")
+
+    // Room Database
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
 
     // Chrome Custom Tabs 지원
     implementation("androidx.browser:browser:1.8.0")
