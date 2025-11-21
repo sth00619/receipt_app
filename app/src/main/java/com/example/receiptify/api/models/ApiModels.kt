@@ -40,6 +40,23 @@ data class NaverLoginRequest(
     val name: String? = null
 )
 
+/**
+ * 구글 로그인 요청
+ */
+data class GoogleLoginRequest(
+    @SerializedName("idToken")
+    val idToken: String,
+
+    @SerializedName("email")
+    val email: String? = null,
+
+    @SerializedName("name")
+    val name: String? = null,
+
+    @SerializedName("photoUrl")
+    val photoUrl: String? = null
+)
+
 // ==================== 사용자 관련 모델 ====================
 
 /**

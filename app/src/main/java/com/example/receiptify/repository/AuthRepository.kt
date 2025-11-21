@@ -148,6 +148,48 @@ class AuthRepository(context: Context) {
     }
 
     /**
+     * ✅ 구글 로그인 (새로 추가)
+     */
+    suspend fun loginWithGoogle(
+        idToken: String,
+        email: String? = null,
+        name: String? = null,
+        photoUrl: String? = null
+    ): Result<UserData> {
+        return try {
+            Log.d(TAG, "🔵 구글 로그인 시도: $email")
+
+            val request = com.example.receiptify.api.models.GoogleLoginRequest(idToken, email, name, photoUrl)
+            val response = api.loginWithGoogle(request)
+
+            Log.d(TAG, "응답 코드: ${response.code()}")
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val authResponse = response.body()!!
+                val token = authResponse.token!!
+                val userData = authResponse.data!!
+
+                // JWT 토큰 저장
+                saveToken(token)
+                saveUserInfo(userData.id, userData.email)
+
+                Log.d(TAG, "✅ 구글 로그인 성공: ${userData.email}")
+                Log.d(TAG, "🔑 JWT 토큰 저장 완료: ${token.take(30)}...")
+
+                Result.success(userData)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val errorMsg = response.body()?.message ?: errorBody ?: "Google login failed"
+                Log.e(TAG, "❌ 구글 로그인 실패 (${response.code()}): $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 구글 로그인 중 오류", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 토큰 검증
      */
     suspend fun verifyToken(): Result<UserData> {

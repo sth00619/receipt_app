@@ -224,4 +224,144 @@ router.post('/verify', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/naver
+ * 네이버 로그인
+ */
+router.post('/naver', async (req, res) => {
+  try {
+    const { accessToken, email, name } = req.body;
+
+    if (!accessToken || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access token and email are required'
+      });
+    }
+
+    // TODO: accessToken으로 네이버 서버에서 사용자 정보 검증 (보안 강화)
+
+    // 사용자 찾기 또는 생성
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // 신규 사용자 생성
+      user = new User({
+        email,
+        displayName: name || email.split('@')[0],
+        provider: 'naver',
+        password: Math.random().toString(36).slice(-8), // 임시 비밀번호
+        stats: {
+          totalReceipts: 0,
+          totalTransactions: 0,
+          totalSpending: 0
+        }
+      });
+      await user.save();
+    } else {
+      // 기존 사용자 정보 업데이트 (필요 시)
+      if (name && !user.displayName) {
+        user.displayName = name;
+        await user.save();
+      }
+    }
+
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        email: user.email
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Naver login successful',
+      token,
+      data: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName
+      }
+    });
+
+  } catch (error) {
+    console.error('Naver login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error logging in with Naver',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/auth/google
+ * 구글 로그인
+ */
+router.post('/google', async (req, res) => {
+  try {
+    const { idToken, email, name, photoUrl } = req.body;
+
+    if (!idToken || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID token and email are required'
+      });
+    }
+
+    // TODO: idToken 검증 (보안 강화)
+
+    // 사용자 찾기 또는 생성
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // 신규 사용자 생성
+      user = new User({
+        email,
+        displayName: name || email.split('@')[0],
+        provider: 'google',
+        password: Math.random().toString(36).slice(-8), // 임시 비밀번호
+        stats: {
+          totalReceipts: 0,
+          totalTransactions: 0,
+          totalSpending: 0
+        }
+      });
+      await user.save();
+    }
+
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        email: user.email
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      data: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName
+      }
+    });
+
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error logging in with Google',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

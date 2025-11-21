@@ -110,6 +110,7 @@ const verifyAuth = async (req, res, next) => {
         }
 
         req.user = {
+          uid: user._id.toString(), // receipts.js와의 호환성을 위해 uid 설정
           userId: user._id.toString(),
           email: user.email,
           displayName: user.displayName,

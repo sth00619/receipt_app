@@ -381,6 +381,60 @@ class LoginActivity : AppCompatActivity() {
     }
 
     /**
+     * ✅ 구글 토큰을 백엔드로 전송하여 JWT 받기
+     */
+    private suspend fun sendGoogleTokenToBackend(
+        idToken: String,
+        email: String?,
+        name: String?,
+        photoUrl: String?
+    ) {
+        try {
+            Log.d(TAG, "🚀 백엔드로 구글 토큰 전송 중...")
+
+            val result = authRepository.loginWithGoogle(idToken, email, name, photoUrl)
+
+            result.onSuccess { userData ->
+                Log.d(TAG, "✅ 구글 로그인 성공!")
+                Log.d(TAG, "👤 사용자: ${userData.email}")
+
+                // ✅ 토큰 저장 확인
+                verifyTokenSaved()
+
+                runOnUiThread {
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "구글 로그인 성공!\n환영합니다, ${name ?: "사용자"}님",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    navigateToMain()
+                }
+
+            }.onFailure { error ->
+                Log.e(TAG, "❌ 구글 로그인 실패", error)
+                runOnUiThread {
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "인증 실패: ${error.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 구글 토큰 전송 중 오류", e)
+            runOnUiThread {
+                Toast.makeText(
+                    this@LoginActivity,
+                    "오류 발생: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
      * ✅ 토큰이 제대로 저장되었는지 확인 (디버깅용)
      */
     private fun verifyTokenSaved() {
@@ -407,8 +461,16 @@ class LoginActivity : AppCompatActivity() {
                 val idToken = account.idToken
 
                 if (idToken != null) {
-                    // TODO: Google 로그인도 백엔드 인증 추가
-                    Toast.makeText(this, "Google 로그인 - Firebase 인증", Toast.LENGTH_SHORT).show()
+                    val email = account.email
+                    val name = account.displayName
+                    val photoUrl = account.photoUrl?.toString()
+
+                    Log.d(TAG, "✅ Google ID Token retrieved: ${idToken.take(50)}...")
+
+                    // ✅ 백엔드로 구글 토큰 전송하여 JWT 받기
+                    lifecycleScope.launch {
+                        sendGoogleTokenToBackend(idToken, email, name, photoUrl)
+                    }
                 } else {
                     Toast.makeText(this, getString(R.string.error_google_signin), Toast.LENGTH_SHORT).show()
                 }

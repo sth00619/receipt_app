@@ -31,6 +31,14 @@ interface ReceiptApiService {
         @Body request: NaverLoginRequest
     ): Response<AuthResponse>
 
+    /**
+     * 구글 토큰으로 로그인 (새로 추가)
+     */
+    @POST("auth/google")
+    suspend fun loginWithGoogle(
+        @Body request: GoogleLoginRequest
+    ): Response<AuthResponse>
+
     // ============ 사용자 관련 API ============
 
     // 사용자 동기화 (로그인 후 호출)
