@@ -50,7 +50,7 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d(TAG, "onCreate started")
+        Log.d(TAG, "🚀 onCreate started")
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         authRepository = AuthRepository(this)
@@ -110,23 +110,21 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        // JWT 토큰이 있는지 확인
+        // JWT 토큰 확인 (가장 중요!)
         val isLoggedIn = authRepository.isLoggedIn()
-        val naverLoggedIn = prefs.getBoolean(KEY_NAVER_LOGGED_IN, false)
-        val naverToken = NaverIdLoginSDK.getAccessToken()
 
-        Log.d(TAG, "checkLoginStatus - Email Login: $isLoggedIn, Naver Pref: $naverLoggedIn, Naver Token: ${naverToken != null}")
+        Log.d(TAG, "🔐 로그인 상태 확인 - JWT 토큰 있음: $isLoggedIn")
 
         if (::binding.isInitialized) {
             Log.d(TAG, "Login UI already initialized, staying on LoginActivity")
             return
         }
 
-        if (isLoggedIn || (naverLoggedIn && naverToken != null)) {
-            Log.d(TAG, "User already logged in, navigating to HomeActivity directly")
+        if (isLoggedIn) {
+            Log.d(TAG, "✅ JWT 토큰 존재 - HomeActivity로 이동")
             navigateToMain()
         } else {
-            Log.d(TAG, "User not logged in, showing login screen")
+            Log.d(TAG, "❌ JWT 토큰 없음 - 로그인 화면 표시")
             binding = ActivityLoginBinding.inflate(layoutInflater)
             setContentView(binding.root)
             setupClickListeners()
@@ -149,7 +147,7 @@ class LoginActivity : AppCompatActivity() {
             NAVER_CLIENT_SECRET,
             NAVER_CLIENT_NAME
         )
-        Log.d(TAG, "Naver SDK initialized")
+        Log.d(TAG, "✅ Naver SDK initialized")
     }
 
     private fun setupClickListeners() {
@@ -208,11 +206,16 @@ class LoginActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 binding.btnLogin.isEnabled = false
+                Log.d(TAG, "📧 이메일 로그인 시도: $email")
 
                 val result = authRepository.login(email, password)
 
                 result.onSuccess { userData ->
                     Log.d(TAG, "✅ 로그인 성공: ${userData.email}")
+
+                    // ✅ 토큰 저장 확인
+                    verifyTokenSaved()
+
                     Toast.makeText(
                         this@LoginActivity,
                         "환영합니다, ${userData.displayName ?: userData.email}님!",
@@ -239,11 +242,12 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun signInWithNaver() {
-        Log.d(TAG, "🔵 Naver login button clicked")
+        Log.d(TAG, "🟢 Naver login button clicked")
 
-        val naverLoggedIn = prefs.getBoolean(KEY_NAVER_LOGGED_IN, false)
-        if (naverLoggedIn) {
-            Log.d(TAG, "✅ Already logged in (from pref) - Skipping authentication")
+        // ✅ JWT 토큰으로 로그인 상태 확인
+        val isLoggedIn = authRepository.isLoggedIn()
+        if (isLoggedIn) {
+            Log.d(TAG, "✅ 이미 로그인됨 (JWT 토큰 존재)")
             Toast.makeText(this, "이미 로그인되어 있습니다", Toast.LENGTH_SHORT).show()
             navigateToMain()
             return
@@ -254,6 +258,7 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "✅ Naver OAuth SUCCESS")
                 val token = NaverIdLoginSDK.getAccessToken()
                 if (token != null) {
+                    Log.d(TAG, "🔑 네이버 Access Token: ${token.take(50)}...")
                     getNaverUserProfile()
                 } else {
                     runOnUiThread {
@@ -280,20 +285,69 @@ class LoginActivity : AppCompatActivity() {
         NaverIdLoginSDK.authenticate(this, oauthLoginCallback)
     }
 
+    /**
+     * ✅ 네이버 사용자 프로필 가져오기 및 백엔드 인증
+     */
     private fun getNaverUserProfile() {
-        Log.d(TAG, "Getting Naver user profile...")
+        Log.d(TAG, "🟢 Getting Naver user profile...")
 
         NidOAuthLogin().callProfileApi(object : NidProfileCallback<NidProfileResponse> {
             override fun onSuccess(result: NidProfileResponse) {
-                val userId = result.profile?.id
                 val email = result.profile?.email
                 val name = result.profile?.name
+                val naverToken = NaverIdLoginSDK.getAccessToken()
 
-                Log.d(TAG, "Naver profile retrieved: $email")
+                Log.d(TAG, "✅ Naver profile retrieved: $email")
+
+                if (naverToken != null) {
+                    // ✅ 백엔드로 네이버 토큰 전송하여 JWT 받기
+                    lifecycleScope.launch {
+                        sendNaverTokenToBackend(naverToken, email, name)
+                    }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this@LoginActivity, "네이버 토큰을 가져올 수 없습니다", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            override fun onError(errorCode: Int, message: String) {
+                Log.e(TAG, "❌ Naver profile error: $message")
+                runOnUiThread {
+                    Toast.makeText(this@LoginActivity, "프로필 정보를 가져오는데 실패했습니다", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onFailure(httpStatus: Int, message: String) {
+                Log.e(TAG, "❌ Naver profile failure: $message")
+                runOnUiThread {
+                    Toast.makeText(this@LoginActivity, "프로필 정보를 가져오는데 실패했습니다", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+    }
+
+    /**
+     * ✅ 네이버 토큰을 백엔드로 전송하여 JWT 받기
+     */
+    private suspend fun sendNaverTokenToBackend(
+        naverToken: String,
+        email: String?,
+        name: String?
+    ) {
+        try {
+            Log.d(TAG, "🚀 백엔드로 네이버 토큰 전송 중...")
+
+            val result = authRepository.loginWithNaver(naverToken, email, name)
+
+            result.onSuccess { userData ->
+                Log.d(TAG, "✅ 네이버 로그인 성공!")
+                Log.d(TAG, "👤 사용자: ${userData.email}")
+
+                // ✅ 토큰 저장 확인
+                verifyTokenSaved()
 
                 runOnUiThread {
-                    prefs.edit().putBoolean(KEY_NAVER_LOGGED_IN, true).apply()
-
                     Toast.makeText(
                         this@LoginActivity,
                         "네이버 로그인 성공!\n환영합니다, ${name ?: "사용자"}님",
@@ -302,22 +356,45 @@ class LoginActivity : AppCompatActivity() {
 
                     navigateToMain()
                 }
-            }
 
-            override fun onError(errorCode: Int, message: String) {
-                Log.e(TAG, "Naver profile error: $message")
+            }.onFailure { error ->
+                Log.e(TAG, "❌ 네이버 로그인 실패", error)
                 runOnUiThread {
-                    Toast.makeText(this@LoginActivity, "프로필 정보를 가져오는데 실패했습니다", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "인증 실패: ${error.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
 
-            override fun onFailure(httpStatus: Int, message: String) {
-                Log.e(TAG, "Naver profile failure: $message")
-                runOnUiThread {
-                    Toast.makeText(this@LoginActivity, "프로필 정보를 가져오는데 실패했습니다", Toast.LENGTH_SHORT).show()
-                }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 네이버 토큰 전송 중 오류", e)
+            runOnUiThread {
+                Toast.makeText(
+                    this@LoginActivity,
+                    "오류 발생: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-        })
+        }
+    }
+
+    /**
+     * ✅ 토큰이 제대로 저장되었는지 확인 (디버깅용)
+     */
+    private fun verifyTokenSaved() {
+        val savedToken = authRepository.getToken()
+
+        if (savedToken != null) {
+            Log.d(TAG, "✅ 토큰 저장 확인됨: ${savedToken.take(50)}...")
+        } else {
+            Log.e(TAG, "❌ 토큰 저장 실패!")
+        }
+
+        // 모든 키 출력
+        val allKeys = prefs.all.keys
+        Log.d(TAG, "📦 SharedPreferences 모든 키: $allKeys")
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -330,8 +407,7 @@ class LoginActivity : AppCompatActivity() {
                 val idToken = account.idToken
 
                 if (idToken != null) {
-                    // Google 로그인은 Firebase 방식 유지
-                    // (Firebase Auth Manager 사용)
+                    // TODO: Google 로그인도 백엔드 인증 추가
                     Toast.makeText(this, "Google 로그인 - Firebase 인증", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, getString(R.string.error_google_signin), Toast.LENGTH_SHORT).show()
@@ -350,7 +426,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         isNavigating = true
-        Log.d(TAG, "navigateToMain() CALLED")
+        Log.d(TAG, "🚀 navigateToMain() CALLED")
 
         try {
             val intent = Intent(this, HomeActivity::class.java).apply {
@@ -359,11 +435,11 @@ class LoginActivity : AppCompatActivity() {
 
             startActivity(intent)
             finish()
-            Log.d(TAG, "HomeActivity started and LoginActivity finished")
+            Log.d(TAG, "✅ HomeActivity started and LoginActivity finished")
 
         } catch (e: Exception) {
             isNavigating = false
-            Log.e(TAG, "ERROR starting HomeActivity", e)
+            Log.e(TAG, "❌ ERROR starting HomeActivity", e)
             runOnUiThread {
                 Toast.makeText(this, "화면 전환 오류: ${e.message}", Toast.LENGTH_LONG).show()
             }

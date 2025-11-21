@@ -3,11 +3,13 @@ package com.example.receiptify.ui
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.receiptify.R
 import com.example.receiptify.databinding.ActivityProfileBinding
+import com.example.receiptify.repository.AuthRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -16,11 +18,18 @@ import com.navercorp.nid.NaverIdLoginSDK
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProfileBinding
+    private lateinit var authRepository: AuthRepository
+
+    companion object {
+        private const val TAG = "ProfileActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        authRepository = AuthRepository(this)
 
         setupClickListeners()
     }
@@ -88,28 +97,51 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
-        // SharedPreferences 플래그 제거
-        val prefs = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("naver_logged_in", false).apply()
+        Log.d(TAG, "🔓 로그아웃 시작")
 
-        // Firebase 로그아웃
-        FirebaseAuth.getInstance().signOut()
+        try {
+            // 1. JWT 토큰 및 사용자 정보 삭제 (AuthRepository 사용)
+            authRepository.logout()
+            Log.d(TAG, "✅ JWT 토큰 삭제 완료")
 
-        // Google 로그아웃
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
-        val googleSignInClient = GoogleSignIn.getClient(this, gso)
-        googleSignInClient.signOut()
+            // 2. Naver 로그인 상태 제거
+            val prefs = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                remove("naver_logged_in")
+                apply()
+            }
+            NaverIdLoginSDK.logout()
+            Log.d(TAG, "✅ Naver 로그아웃 완료")
 
-        // Naver 로그아웃
-        NaverIdLoginSDK.logout()
+            // 3. Firebase 로그아웃
+            FirebaseAuth.getInstance().signOut()
+            Log.d(TAG, "✅ Firebase 로그아웃 완료")
 
-        Toast.makeText(this, getString(R.string.logout_success), Toast.LENGTH_SHORT).show()
+            // 4. Google 로그아웃
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+            val googleSignInClient = GoogleSignIn.getClient(this, gso)
+            googleSignInClient.signOut().addOnCompleteListener {
+                Log.d(TAG, "✅ Google 로그아웃 완료")
+            }
 
-        // LoginActivity로 이동
-        val intent = Intent(this, LoginActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            Toast.makeText(this, getString(R.string.logout_success), Toast.LENGTH_SHORT).show()
+
+            // 5. LoginActivity로 이동
+            val intent = Intent(this, LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+            finish()
+
+            Log.d(TAG, "✅ LoginActivity로 이동 완료")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 로그아웃 중 오류 발생", e)
+            Toast.makeText(
+                this,
+                "로그아웃 중 오류가 발생했습니다: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
-        startActivity(intent)
-        finish()
     }
 }

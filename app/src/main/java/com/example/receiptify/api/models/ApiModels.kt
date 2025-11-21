@@ -24,10 +24,26 @@ data class ApiResponse<T>(
     val error: String? = null
 )
 
+// ==================== 인증 관련 모델 (NaverLoginRequest만) ====================
+
+/**
+ * 네이버 로그인 요청
+ */
+data class NaverLoginRequest(
+    @SerializedName("accessToken")
+    val accessToken: String,
+
+    @SerializedName("email")
+    val email: String? = null,
+
+    @SerializedName("name")
+    val name: String? = null
+)
+
 // ==================== 사용자 관련 모델 ====================
 
 /**
- * 사용자 응답
+ * 사용자 응답 (프로필 조회용)
  */
 data class UserResponse(
     @SerializedName("_id")

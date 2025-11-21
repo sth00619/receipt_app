@@ -23,6 +23,14 @@ interface ReceiptApiService {
         @Body request: VerifyTokenRequest
     ): Response<AuthResponse>
 
+    /**
+     * 네이버 토큰으로 로그인 (새로 추가)
+     */
+    @POST("auth/naver")
+    suspend fun loginWithNaver(
+        @Body request: NaverLoginRequest
+    ): Response<AuthResponse>
+
     // ============ 사용자 관련 API ============
 
     // 사용자 동기화 (로그인 후 호출)

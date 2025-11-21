@@ -65,21 +65,25 @@ class HomeActivity : AppCompatActivity() {
         setupBackPressHandler()
     }
 
-    // ✅ 새로 추가된 메서드
     private fun checkAuthTokens() {
-        // 1. JWT 토큰 확인
-        val jwtToken = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
-            .getString("auth_token", null)
-        Log.d(TAG, "💳 JWT 토큰: ${jwtToken?.take(30)?.plus("...") ?: "없음"}")
+        val sharedPref = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
 
-        // 2. Firebase 사용자 확인
+        // 1. JWT 토큰 확인
+        val jwtToken = sharedPref.getString("auth_token", null)
+        Log.d(TAG, "💳 JWT 토큰 존재: ${jwtToken != null}")
+        Log.d(TAG, "💳 JWT 토큰 값: ${jwtToken?.take(50)?.plus("...") ?: "없음"}")
+
+        // 2. SharedPreferences의 모든 키 출력 (디버깅용)
+        val allEntries = sharedPref.all
+        Log.d(TAG, "📦 SharedPreferences 전체 키: ${allEntries.keys}")
+
+        // 3. Firebase 사용자 확인
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         Log.d(TAG, "🔥 Firebase 사용자: ${firebaseUser?.email ?: "없음"}")
 
-        // 3. Naver 토큰 확인
+        // 4. Naver 토큰 확인
         val naverToken = NaverIdLoginSDK.getAccessToken()
-        val naverPref = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
-            .getBoolean("naver_logged_in", false)
+        val naverPref = sharedPref.getBoolean("naver_logged_in", false)
         Log.d(TAG, "🟢 Naver 토큰: ${naverToken?.take(30)?.plus("...") ?: "없음"}, Pref: $naverPref")
     }
 
@@ -133,68 +137,10 @@ class HomeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // 1. 영수증 목록 조회
-                val receiptsResult = receiptRepository.getReceipts(limit = 5)
-
-                receiptsResult.onSuccess { receipts ->
-                    Log.d(TAG, "✅ ${receipts.size}개 영수증 로드 완료")
-
-                    if (receipts.isEmpty()) {
-                        showEmptyState()
-                    } else {
-                        hideEmptyState()
-
-                        val transactions = receipts.map { receipt ->
-                            Transaction(
-                                id = receipt.id,
-                                storeName = receipt.storeName,
-                                category = receipt.category,
-                                amount = receipt.totalAmount.toLong(),
-                                date = parseDate(receipt.transactionDate),
-                                userId = authRepository.getUserId() ?: ""
-                            )
-                        }
-
-                        transactionAdapter.submitList(transactions)
-                    }
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ 영수증 로드 실패", error)
-
-                    if (error.message?.contains("401") == true ||
-                        error.message?.contains("Token") == true ||
-                        error.message?.contains("Unauthorized") == true) {
-                        Toast.makeText(
-                            this@HomeActivity,
-                            "세션이 만료되었습니다. 다시 로그인해주세요.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        navigateToLogin()
-                    } else {
-                        Toast.makeText(
-                            this@HomeActivity,
-                            "데이터를 불러오는데 실패했습니다: ${error.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        showEmptyState()
-                    }
-                }
+                loadRecentReceipts()
 
                 // 2. 통계 조회
-                val statsResult = receiptRepository.getStats()
-
-                statsResult.onSuccess { stats ->
-                    Log.d(TAG, "✅ 통계 로드 완료: ${stats.total.totalAmount}")
-
-                    val totalAmount = stats.total.totalAmount.toLong()
-                    updateMonthlyData(totalAmount, 12, true)
-
-                    val todayAmount = (totalAmount / 30).coerceAtLeast(0)
-                    updateTodaySpending(todayAmount)
-
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ 통계 로드 실패", error)
-                    updateMonthlyData(0, 0, true)
-                    updateTodaySpending(0)
-                }
+                loadStats()
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 데이터 로드 중 오류", e)
@@ -205,6 +151,131 @@ class HomeActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    /**
+     * 최근 영수증 목록 조회
+     */
+    private suspend fun loadRecentReceipts() {
+        val receiptsResult = receiptRepository.getReceipts(limit = 5)
+
+        receiptsResult.onSuccess { receipts ->
+            Log.d(TAG, "✅ ${receipts.size}개 영수증 로드 완료")
+
+            if (receipts.isEmpty()) {
+                showEmptyState()
+            } else {
+                hideEmptyState()
+
+                val transactions = receipts.map { receipt ->
+                    Transaction(
+                        id = receipt.id,
+                        storeName = receipt.storeName,
+                        category = receipt.category,
+                        amount = receipt.totalAmount.toLong(),
+                        date = parseDate(receipt.transactionDate),
+                        userId = authRepository.getUserId() ?: ""
+                    )
+                }
+
+                transactionAdapter.submitList(transactions)
+            }
+        }.onFailure { error ->
+            Log.e(TAG, "❌ 영수증 로드 실패", error)
+
+            if (error.message?.contains("401") == true ||
+                error.message?.contains("Token") == true ||
+                error.message?.contains("Unauthorized") == true) {
+                Toast.makeText(
+                    this@HomeActivity,
+                    "세션이 만료되었습니다. 다시 로그인해주세요.",
+                    Toast.LENGTH_LONG
+                ).show()
+                navigateToLogin()
+            } else {
+                Toast.makeText(
+                    this@HomeActivity,
+                    "데이터를 불러오는데 실패했습니다: ${error.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                showEmptyState()
+            }
+        }
+    }
+
+    /**
+     * 통계 조회 (개선된 버전)
+     */
+    private suspend fun loadStats() {
+        try {
+            Log.d(TAG, "📊 통계 조회 시작...")
+
+            val statsResult = receiptRepository.getStats()
+
+            statsResult.fold(
+                onSuccess = { stats ->
+                    val totalAmount = stats.total.totalAmount.toLong()
+                    val receiptCount = stats.total.count  // ✅ 이렇게 수정
+
+                    Log.d(TAG, "✅ 통계 로드 성공: 총액 ${stats.total.totalAmount}, 개수 ${receiptCount}")
+
+                    // 월별 데이터 업데이트
+                    updateMonthlyData(totalAmount, 12, true)
+
+                    // 오늘 지출 계산 (임시로 월 평균/30)
+                    val todayAmount = if (totalAmount > 0) {
+                        (totalAmount / 30).coerceAtLeast(0)
+                    } else {
+                        0L
+                    }
+                    updateTodaySpending(todayAmount)
+
+                    Log.d(TAG, "✅ UI 업데이트 완료")
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "❌ 통계 로드 실패", error)
+
+                    // 에러 타입에 따라 다른 메시지
+                    val errorMessage = when {
+                        error.message?.contains("401") == true -> {
+                            navigateToLogin()
+                            "로그인이 필요합니다"
+                        }
+                        error.message?.contains("403") == true -> "권한이 없습니다"
+                        error.message?.contains("500") == true -> "서버 오류가 발생했습니다"
+                        error.message?.contains("timeout") == true -> "네트워크 연결을 확인해주세요"
+                        error.message?.contains("Unable to resolve host") == true -> "네트워크 연결을 확인해주세요"
+                        else -> "통계를 불러올 수 없습니다"
+                    }
+
+                    Toast.makeText(
+                        this@HomeActivity,
+                        errorMessage,
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    // 기본값으로 UI 업데이트
+                    showEmptyStats()
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 통계 로드 중 예상치 못한 오류", e)
+            Toast.makeText(
+                this@HomeActivity,
+                "오류가 발생했습니다",
+                Toast.LENGTH_SHORT
+            ).show()
+            showEmptyStats()
+        }
+    }
+
+    /**
+     * 빈 통계 표시
+     */
+    private fun showEmptyStats() {
+        Log.d(TAG, "📊 빈 통계 표시")
+        updateMonthlyData(0, 0, true)
+        updateTodaySpending(0)
     }
 
     private fun parseDate(dateString: String): Long {
