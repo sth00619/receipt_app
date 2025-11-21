@@ -16,6 +16,7 @@ import com.example.receiptify.databinding.ActivityHomeBinding
 import com.example.receiptify.model.Transaction
 import com.example.receiptify.repository.AuthRepository
 import com.example.receiptify.repository.ReceiptRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.navercorp.nid.NaverIdLoginSDK
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -46,6 +47,9 @@ class HomeActivity : AppCompatActivity() {
         authRepository = AuthRepository(this)
         receiptRepository = ReceiptRepository()
 
+        // ✅ 인증 토큰 디버깅
+        checkAuthTokens()
+
         // 로그인 확인
         if (!isUserLoggedIn()) {
             Log.d(TAG, "User not logged in, navigating to LoginActivity")
@@ -59,6 +63,24 @@ class HomeActivity : AppCompatActivity() {
         loadDataFromMongoDB()
         setupClickListeners()
         setupBackPressHandler()
+    }
+
+    // ✅ 새로 추가된 메서드
+    private fun checkAuthTokens() {
+        // 1. JWT 토큰 확인
+        val jwtToken = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
+            .getString("auth_token", null)
+        Log.d(TAG, "💳 JWT 토큰: ${jwtToken?.take(30)?.plus("...") ?: "없음"}")
+
+        // 2. Firebase 사용자 확인
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        Log.d(TAG, "🔥 Firebase 사용자: ${firebaseUser?.email ?: "없음"}")
+
+        // 3. Naver 토큰 확인
+        val naverToken = NaverIdLoginSDK.getAccessToken()
+        val naverPref = getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
+            .getBoolean("naver_logged_in", false)
+        Log.d(TAG, "🟢 Naver 토큰: ${naverToken?.take(30)?.plus("...") ?: "없음"}, Pref: $naverPref")
     }
 
     private fun setupBackPressHandler() {
@@ -138,7 +160,8 @@ class HomeActivity : AppCompatActivity() {
                     Log.e(TAG, "❌ 영수증 로드 실패", error)
 
                     if (error.message?.contains("401") == true ||
-                        error.message?.contains("Token") == true) {
+                        error.message?.contains("Token") == true ||
+                        error.message?.contains("Unauthorized") == true) {
                         Toast.makeText(
                             this@HomeActivity,
                             "세션이 만료되었습니다. 다시 로그인해주세요.",
@@ -177,7 +200,7 @@ class HomeActivity : AppCompatActivity() {
                 Log.e(TAG, "❌ 데이터 로드 중 오류", e)
                 Toast.makeText(
                     this@HomeActivity,
-                    "오류가 발생했습니다",
+                    "오류가 발생했습니다: ${e.message}",
                     Toast.LENGTH_SHORT
                 ).show()
             }
