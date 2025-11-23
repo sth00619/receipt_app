@@ -5,10 +5,13 @@ import com.example.receiptify.api.RetrofitClient
 import com.example.receiptify.api.models.CreateReceiptRequest
 import com.example.receiptify.api.models.ReceiptResponse
 import com.example.receiptify.api.models.StatsResponse
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ReceiptRepository {
 
     private val api = RetrofitClient.api
+    private val isoDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     companion object {
         private const val TAG = "ReceiptRepository"
@@ -97,7 +100,7 @@ class ReceiptRepository {
     }
 
     /**
-     * 통계 조회
+     * 통계 조회 (전체 또는 월별)
      */
     suspend fun getStats(
         month: Int? = null,
@@ -143,6 +146,54 @@ class ReceiptRepository {
     }
 
     /**
+     * 날짜 범위로 통계 조회 (새로 추가)
+     */
+    suspend fun getStatsByDateRange(
+        startDate: Date?,
+        endDate: Date?
+    ): Result<StatsResponse> {
+        return try {
+            val startDateStr = startDate?.let { isoDateFormat.format(it) }
+            val endDateStr = endDate?.let { isoDateFormat.format(it) }
+
+            Log.d(TAG, "📊 날짜 범위 통계 조회 중... (start: $startDateStr, end: $endDateStr)")
+
+            val response = api.getStatsByDateRange(startDateStr, endDateStr)
+
+            // ✅ 상세 응답 로깅
+            Log.d(TAG, "Response code: ${response.code()}")
+            Log.d(TAG, "Response message: ${response.message()}")
+            Log.d(TAG, "Is successful: ${response.isSuccessful}")
+            Log.d(TAG, "Body success field: ${response.body()?.success}")
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val stats = response.body()?.data!!
+                Log.d(TAG, "✅ 날짜 범위 통계 조회 성공: 총액 ${stats.total.totalAmount}, 개수 ${stats.total.count}")
+                Result.success(stats)
+            } else {
+                // ✅ 실패 원인 상세 로깅
+                val errorBody = response.errorBody()?.string()
+                val bodyMessage = response.body()?.message
+                val bodyError = response.body()?.error
+
+                Log.e(TAG, "❌ 날짜 범위 통계 조회 실패")
+                Log.e(TAG, "  - HTTP Status: ${response.code()}")
+                Log.e(TAG, "  - Success flag: ${response.body()?.success}")
+                Log.e(TAG, "  - Body message: $bodyMessage")
+                Log.e(TAG, "  - Body error: $bodyError")
+                Log.e(TAG, "  - Error body: $errorBody")
+
+                val errorMsg = bodyMessage ?: bodyError ?: errorBody ?: "Failed to fetch stats"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 날짜 범위 통계 조회 중 예외 발생: ${e.javaClass.simpleName}", e)
+            Log.e(TAG, "  - Message: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 특정 영수증 조회
      */
     suspend fun getReceipt(id: String): Result<ReceiptResponse> {
@@ -151,13 +202,24 @@ class ReceiptRepository {
 
             val response = api.getReceipt(id)
 
+            // ✅ 상세 응답 로깅
+            Log.d(TAG, "Response code: ${response.code()}")
+            Log.d(TAG, "Response success: ${response.body()?.success}")
+
             if (response.isSuccessful && response.body()?.success == true) {
                 val receipt = response.body()?.data!!
                 Log.d(TAG, "✅ 영수증 조회 성공: ${receipt.storeName}")
                 Result.success(receipt)
             } else {
-                val errorMsg = response.body()?.message ?: "Receipt not found"
-                Log.e(TAG, "❌ 영수증 조회 실패: $errorMsg (Status: ${response.code()})")
+                val errorBody = response.errorBody()?.string()
+                val bodyMessage = response.body()?.message
+
+                Log.e(TAG, "❌ 영수증 조회 실패")
+                Log.e(TAG, "  - HTTP Status: ${response.code()}")
+                Log.e(TAG, "  - Body message: $bodyMessage")
+                Log.e(TAG, "  - Error body: $errorBody")
+
+                val errorMsg = bodyMessage ?: errorBody ?: "Receipt not found"
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -175,12 +237,23 @@ class ReceiptRepository {
 
             val response = api.deleteReceipt(id)
 
+            // ✅ 상세 응답 로깅
+            Log.d(TAG, "Response code: ${response.code()}")
+            Log.d(TAG, "Response success: ${response.body()?.success}")
+
             if (response.isSuccessful && response.body()?.success == true) {
                 Log.d(TAG, "✅ 영수증 삭제 성공")
                 Result.success(Unit)
             } else {
-                val errorMsg = response.body()?.message ?: "Failed to delete receipt"
-                Log.e(TAG, "❌ 영수증 삭제 실패: $errorMsg (Status: ${response.code()})")
+                val errorBody = response.errorBody()?.string()
+                val bodyMessage = response.body()?.message
+
+                Log.e(TAG, "❌ 영수증 삭제 실패")
+                Log.e(TAG, "  - HTTP Status: ${response.code()}")
+                Log.e(TAG, "  - Body message: $bodyMessage")
+                Log.e(TAG, "  - Error body: $errorBody")
+
+                val errorMsg = bodyMessage ?: errorBody ?: "Failed to delete receipt"
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {

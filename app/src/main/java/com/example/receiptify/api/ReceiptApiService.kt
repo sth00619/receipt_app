@@ -94,4 +94,12 @@ interface ReceiptApiService {
         @Query("month") month: Int? = null,
         @Query("year") year: Int? = null
     ): Response<ApiResponse<StatsResponse>>
+
+    // ✅ 날짜 범위로 통계 조회 (새로 추가)
+    @GET("receipts/stats")
+    suspend fun getStatsByDateRange(
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null
+    ): Response<ApiResponse<StatsResponse>>
+
 }

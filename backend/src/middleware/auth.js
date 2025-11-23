@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { auth: firebaseAuth } = require('../config/firebase-admin');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'receiptify_secret_key_change_in_production';
+const JWT_SECRET = process.env.JWT_SECRET || 'receiptify_super_secret_key_change_this_in_production_12345';
 
 /**
  * JWT 토큰 검증 미들웨어 (일반 로그인용)
@@ -12,7 +12,11 @@ const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
+    console.log('🔐 JWT 검증 시작');
+    console.log('📍 요청:', req.method, req.path);
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Authorization 헤더 없음');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
@@ -20,14 +24,17 @@ const verifyJWT = async (req, res, next) => {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    console.log('💳 토큰 앞부분:', token.substring(0, 30) + '...');
 
     // JWT 검증
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('✅ JWT 디코딩 성공:', decoded);
 
     // 사용자 조회
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
+      console.log('❌ 사용자를 찾을 수 없음:', decoded.userId);
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -41,7 +48,7 @@ const verifyJWT = async (req, res, next) => {
       displayName: user.displayName
     };
 
-    console.log(`✅ JWT 인증 성공: ${req.user.email}`);
+    console.log(`✅ JWT 인증 성공: ${req.user.email}, userId: ${req.user.userId}`);
 
     next();
   } catch (error) {
@@ -70,7 +77,12 @@ const verifyAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
+    console.log('🔐 인증 검증 시작');
+    console.log('📍 요청:', req.method, req.path);
+    console.log('📋 Authorization 헤더:', authHeader ? authHeader.substring(0, 50) + '...' : '없음');
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Authorization 헤더 없음 또는 형식 오류');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
@@ -96,13 +108,17 @@ const verifyAuth = async (req, res, next) => {
       return next();
 
     } catch (firebaseError) {
+      console.log('🔄 Firebase 토큰 아님, JWT 검증 시도...');
+
       // Firebase 토큰이 아니면 JWT 검증 시도
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
+        console.log('✅ JWT 디코딩 성공:', decoded);
 
         const user = await User.findById(decoded.userId).select('-password');
 
         if (!user) {
+          console.log('❌ 사용자를 찾을 수 없음:', decoded.userId);
           return res.status(404).json({
             success: false,
             message: 'User not found'
@@ -110,17 +126,18 @@ const verifyAuth = async (req, res, next) => {
         }
 
         req.user = {
-          uid: user._id.toString(), // receipts.js와의 호환성을 위해 uid 설정
+          uid: user._id.toString(),
           userId: user._id.toString(),
           email: user.email,
           displayName: user.displayName,
           provider: 'email'
         };
 
-        console.log(`✅ JWT 인증 성공: ${req.user.email}`);
+        console.log(`✅ JWT 인증 성공: ${req.user.email}, userId: ${req.user.userId}`);
         return next();
 
       } catch (jwtError) {
+        console.error('❌ JWT 검증도 실패:', jwtError.message);
         throw jwtError;
       }
     }

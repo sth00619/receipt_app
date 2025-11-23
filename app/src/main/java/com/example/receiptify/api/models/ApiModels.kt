@@ -24,7 +24,7 @@ data class ApiResponse<T>(
     val error: String? = null
 )
 
-// ==================== 인증 관련 모델 (NaverLoginRequest만) ====================
+// ==================== 인증 관련 모델 ====================
 
 /**
  * 네이버 로그인 요청
@@ -283,9 +283,10 @@ data class StatsResponse(
 
 /**
  * 카테고리별 통계
+ * ✅ 수정: @SerializedName("_id") → @SerializedName("category")
  */
 data class CategoryStat(
-    @SerializedName("_id")
+    @SerializedName("category")  // ✅ 수정: 백엔드에서 "category"로 보내고 있음
     val category: String,
 
     @SerializedName("totalAmount")

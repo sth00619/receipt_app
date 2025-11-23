@@ -215,7 +215,7 @@ class HomeActivity : AppCompatActivity() {
             statsResult.fold(
                 onSuccess = { stats ->
                     val totalAmount = stats.total.totalAmount.toLong()
-                    val receiptCount = stats.total.count  // ✅ 이렇게 수정
+                    val receiptCount = stats.total.count
 
                     Log.d(TAG, "✅ 통계 로드 성공: 총액 ${stats.total.totalAmount}, 개수 ${receiptCount}")
 
@@ -310,7 +310,7 @@ class HomeActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_home -> true
                 R.id.nav_categories -> {
-                    Toast.makeText(this, R.string.categories_coming_soon, Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this, CategoriesActivity::class.java))
                     false
                 }
                 R.id.nav_receipts -> {

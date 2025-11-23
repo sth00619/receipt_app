@@ -1,69 +1,46 @@
+// backend/server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Middleware
+// 미들웨어
 app.use(cors());
-app.use(express.json()); // JSON 요청 본문 파싱
-app.use(express.urlencoded({ extended: true })); // URL-encoded 요청 본문 파싱
-
-// Request 로깅
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+app.use(express.json());
 
 // MongoDB 연결
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => {
-  console.log('✅ MongoDB 연결 성공');
-  console.log(`   Database: ${mongoose.connection.name}`);
-})
-.catch(err => {
-  console.error('❌ MongoDB 연결 실패:', err.message);
-  process.exit(1);
-});
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/receiptify')
+  .then(() => {
+    console.log('✅ MongoDB connected');
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+    process.exit(1);
+  });
 
-// Firebase Admin 초기화 테스트
-// (인증 라우트에서 Firebase Auth 토큰 검증 또는 커스텀 토큰 생성을 위해 필요)
-try {
-  require('./src/config/firebase-admin');
-  console.log('✅ Firebase Admin SDK 초기화 성공');
-} catch (error) {
-  console.error('❌ Firebase Admin SDK 초기화 실패:', error.message);
-  console.error('   서비스 계정 키 파일을 확인하세요.');
-}
-
-// Health Check
-app.get('/api/health', (req, res) => {
+// Health Check (인증 불필요)
+app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'Receiptify API Server is running',
-    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    firebase: 'Configured',
+    message: 'Receiptify Backend is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// Routes
-// auth 라우트를 추가합니다.
-const authRoutes = require('./src/routes/auth');
-const userRoutes = require('./src/routes/users');
-const receiptRoutes = require('./src/routes/receipts');
-const transactionRoutes = require('./src/routes/transactions');
+// ✅ 인증 미들웨어 import (경로 수정: ./src/middleware/auth)
+const { verifyAuth } = require('./src/middleware/auth');
 
-app.use('/api/auth', authRoutes); // **인증(Auth) 라우트 추가**
-app.use('/api/users', userRoutes);
-app.use('/api/receipts', receiptRoutes);
-app.use('/api/transactions', transactionRoutes);
+// API 라우트
+app.use('/api/auth', require('./src/routes/auth'));  // 인증 라우트는 미들웨어 없이
 
-// 404 Handler
+// ✅ 보호된 라우트 (verifyAuth 미들웨어 사용)
+app.use('/api/users', verifyAuth, require('./src/routes/users'));
+app.use('/api/receipts', verifyAuth, require('./src/routes/receipts'));
+
+// 404 핸들러
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -71,25 +48,21 @@ app.use((req, res) => {
   });
 });
 
-// Error Handler
+// 에러 핸들러
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({
+  console.error('❌ Error:', err);
+  res.status(err.status || 500).json({
     success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message: err.message || 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
   });
 });
 
 // 서버 시작
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('='.repeat(50));
-  console.log(`🚀 Receiptify API Server`);
-  console.log(`   Port: ${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV}`);
-  console.log(`   Health Check: http://localhost:${PORT}/api/health`);
-  console.log('='.repeat(50));
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 API endpoint: http://localhost:${PORT}/api`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
 });
 
 module.exports = app;
