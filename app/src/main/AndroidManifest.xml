@@ -137,6 +137,14 @@
             android:name=".ui.CategoriesActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Receipt Edit Activity -->
+        <activity
+            android:name=".ui.ReceiptEditActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

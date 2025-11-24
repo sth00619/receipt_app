@@ -108,6 +108,61 @@ data class UserPreferences(
     val language: String = "ko"
 )
 
+// 프로필 응답
+data class ProfileResponse(
+    @SerializedName("user")
+    val user: UserInfo,
+
+    @SerializedName("stats")
+    val stats: ProfileStats
+)
+
+data class UserInfo(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("email")
+    val email: String,
+
+    @SerializedName("displayName")
+    val displayName: String?,
+
+    @SerializedName("photoUrl")
+    val photoUrl: String?,
+
+    @SerializedName("provider")
+    val provider: String,
+
+    @SerializedName("createdAt")
+    val createdAt: String
+)
+
+data class ProfileStats(
+    @SerializedName("monthlySpending")
+    val monthlySpending: Double,
+
+    @SerializedName("monthlyReceiptCount")
+    val monthlyReceiptCount: Int,
+
+    @SerializedName("totalReceipts")
+    val totalReceipts: Int
+)
+
+// 비밀번호 변경 요청
+data class ChangePasswordRequest(
+    @SerializedName("currentPassword")
+    val currentPassword: String,
+
+    @SerializedName("newPassword")
+    val newPassword: String
+)
+
+// 설정 업데이트 요청
+data class UpdateSettingRequest(
+    @SerializedName("enabled")
+    val enabled: Boolean
+)
+
 /**
  * 사용자 통계
  */

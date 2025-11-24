@@ -55,6 +55,28 @@ interface ReceiptApiService {
         @Body preferences: UserPreferences
     ): Response<ApiResponse<UserResponse>>
 
+    // 프로필 조회
+    @GET("users/me")
+    suspend fun getProfile(): Response<ApiResponse<ProfileResponse>>
+
+    // 비밀번호 변경
+    @PUT("users/change-password")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
+    ): Response<ApiResponse<Unit>>
+
+    // 알림 설정 업데이트
+    @PUT("users/settings/notifications")
+    suspend fun updateNotificationSetting(
+        @Body request: UpdateSettingRequest
+    ): Response<ApiResponse<UserResponse>>
+
+    // 다크모드 설정 업데이트
+    @PUT("users/settings/darkmode")
+    suspend fun updateDarkModeSetting(
+        @Body request: UpdateSettingRequest
+    ): Response<ApiResponse<UserResponse>>
+
     // ============ 영수증 관련 API ============
 
     // Health Check

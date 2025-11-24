@@ -1,10 +1,17 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark theme. -->
     <style name="Base.Theme.Receiptify" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/primary_purple_light</item>
         <item name="colorPrimaryVariant">@color/primary_purple</item>
         <item name="colorOnPrimary">@color/white</item>
-        <item name="android:statusBarColor">@color/primary_purple_dark</item>
-        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="colorSurface">@color/surface_dark</item>
+        <item name="colorOnSurface">@color/text_primary_dark</item>
+
+        <item name="android:colorBackground">@color/background_dark</item>
+        <item name="colorOnBackground">@color/text_primary_dark</item>
+
+        <item name="colorOutline">@color/divider_dark</item>
     </style>
 
     <style name="Theme.Receiptify" parent="Base.Theme.Receiptify" />

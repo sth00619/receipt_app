@@ -1,132 +1,17 @@
-// backend/src/routes/users.js
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const { verifyFirebaseToken } = require('../middleware/auth');
+const Receipt = require('../models/Receipt');
+const bcrypt = require('bcryptjs');
+const { verifyAuth } = require('../middleware/auth');
 
-/**
- * POST /api/users/sync
- * Firebase 로그인 후 MongoDB에 사용자 생성/업데이트
- *
- * 이 API를 호출하면:
- * 1. Firebase 토큰 검증
- * 2. MongoDB에 사용자 존재 여부 확인
- * 3. 없으면 생성, 있으면 업데이트
- */
-router.post('/sync', verifyFirebaseToken, async (req, res) => {
+// 모든 라우트에 인증 미들웨어 적용
+router.use(verifyAuth);
+
+// 내 프로필 조회
+router.get('/me', async (req, res) => {
   try {
-    const { uid, email, name, picture } = req.user;
-
-    // MongoDB에서 사용자 찾기
-    let user = await User.findOne({ uid });
-
-    if (!user) {
-      // 신규 사용자 생성
-      user = new User({
-        uid,
-        email,
-        displayName: name,
-        photoUrl: picture,
-        provider: 'google', // 또는 req.body.provider
-        preferences: {
-          notifications: true,
-          darkMode: false,
-          language: 'ko'
-        },
-        stats: {
-          totalReceipts: 0,
-          totalTransactions: 0,
-          totalSpending: 0
-        },
-        lastLoginAt: new Date()
-      });
-
-      await user.save();
-
-      console.log(`✨ 신규 사용자 생성: ${email}`);
-
-      return res.status(201).json({
-        success: true,
-        message: 'User created successfully',
-        isNewUser: true,
-        data: user
-      });
-    } else {
-      // 기존 사용자 업데이트
-      user.displayName = name || user.displayName;
-      user.photoUrl = picture || user.photoUrl;
-      user.lastLoginAt = new Date();
-
-      await user.save();
-
-      console.log(`🔄 기존 사용자 업데이트: ${email}`);
-
-      return res.json({
-        success: true,
-        message: 'User synced successfully',
-        isNewUser: false,
-        data: user
-      });
-    }
-  } catch (error) {
-    console.error('사용자 동기화 오류:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error syncing user',
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/users/me
- * 현재 로그인한 사용자 정보 조회
- */
-router.get('/me', verifyFirebaseToken, async (req, res) => {
-  try {
-    const user = await User.findOne({ uid: req.user.uid });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found. Please sync first.'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    console.error('사용자 조회 오류:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching user',
-      error: error.message
-    });
-  }
-});
-
-/**
- * PUT /api/users/preferences
- * 사용자 설정 업데이트
- */
-router.put('/preferences', verifyFirebaseToken, async (req, res) => {
-  try {
-    const { notifications, darkMode, language } = req.body;
-
-    const user = await User.findOneAndUpdate(
-      { uid: req.user.uid },
-      {
-        $set: {
-          'preferences.notifications': notifications,
-          'preferences.darkMode': darkMode,
-          'preferences.language': language,
-          updatedAt: new Date()
-        }
-      },
-      { new: true }
-    );
+    const user = await User.findById(req.user.userId).select('-password');
 
     if (!user) {
       return res.status(404).json({
@@ -135,16 +20,191 @@ router.put('/preferences', verifyFirebaseToken, async (req, res) => {
       });
     }
 
+    // 이번 달 지출 계산
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    const monthlyStats = await Receipt.aggregate([
+      {
+        $match: {
+          userId: req.user.userId,
+          transactionDate: {
+            $gte: startOfMonth,
+            $lte: endOfMonth
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$totalAmount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 총 영수증 개수
+    const totalReceipts = await Receipt.countDocuments({ userId: req.user.userId });
+
+    const monthlySpending = monthlyStats[0]?.totalAmount || 0;
+    const monthlyReceiptCount = monthlyStats[0]?.count || 0;
+
     res.json({
       success: true,
-      message: 'Preferences updated',
-      data: user
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          displayName: user.displayName,
+          photoUrl: user.photoUrl,
+          provider: user.provider,
+          createdAt: user.createdAt
+        },
+        stats: {
+          monthlySpending: monthlySpending,
+          monthlyReceiptCount: monthlyReceiptCount,
+          totalReceipts: totalReceipts
+        }
+      }
     });
+
   } catch (error) {
-    console.error('설정 업데이트 오류:', error);
+    console.error('❌ 프로필 조회 오류:', error);
     res.status(500).json({
       success: false,
-      message: 'Error updating preferences',
+      message: 'Error fetching profile',
+      error: error.message
+    });
+  }
+});
+
+// 비밀번호 변경 (일반 로그인 사용자만)
+router.put('/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // OAuth 사용자는 비밀번호 변경 불가
+    if (user.provider !== 'email') {
+      return res.status(400).json({
+        success: false,
+        message: 'Password change is not available for OAuth users'
+      });
+    }
+
+    // 현재 비밀번호 확인
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // 새 비밀번호 해시화
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // 비밀번호 업데이트
+    user.password = hashedPassword;
+    await user.save();
+
+    console.log(`✅ 비밀번호 변경 성공: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ 비밀번호 변경 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error changing password',
+      error: error.message
+    });
+  }
+});
+
+// 알림 설정 업데이트
+router.put('/settings/notifications', async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        $set: {
+          'preferences.notifications': enabled
+        }
+      },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      success: true,
+      data: user
+    });
+
+  } catch (error) {
+    console.error('❌ 알림 설정 업데이트 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating notification settings',
+      error: error.message
+    });
+  }
+});
+
+// 다크모드 설정 업데이트
+router.put('/settings/darkmode', async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        $set: {
+          'preferences.darkMode': enabled
+        }
+      },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      success: true,
+      data: user
+    });
+
+  } catch (error) {
+    console.error('❌ 다크모드 설정 업데이트 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating dark mode settings',
       error: error.message
     });
   }

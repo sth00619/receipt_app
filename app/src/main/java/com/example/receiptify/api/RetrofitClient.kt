@@ -93,6 +93,9 @@ object RetrofitClient {
     // ReceiptApiService 인터페이스 구현체
     val api: ReceiptApiService = retrofit.create(ReceiptApiService::class.java)
 
+    // receiptApi 추가 (api와 동일한 인스턴스)
+    val receiptApi: ReceiptApiService = api
+
     /**
      * Firebase ID Token을 명시적으로 갱신할 때 사용 (JWT 사용 시에는 필요 없음)
      */

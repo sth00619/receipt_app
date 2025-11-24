@@ -4,447 +4,201 @@ import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * Advanced Receipt Parsing Engine
- * Extracts all receipt information based on regular expressions.
- */
-object AdvancedReceiptParser {
-    private const val TAG = "AdvancedReceiptParser"
+class AdvancedReceiptParser {
 
-    // ========== Regular Expression Patterns ==========
-    // 💰 Amount Pattern (1,000원, 10000원, 1,000, 10,000 etc.)
-    private val moneyPattern = Regex("""(\d{1,3}(?:,\d{3})*|\d+)(?:원)?""")
+    companion object {
+        private const val TAG = "AdvancedReceiptParser"
+    }
 
-    // 💵 Total Amount Keywords
-    private val totalKeywords = listOf(
-        "합계", "총액", "결제금액", "받을금액", "결제", "지불금액",
-        "total", "amount", "pay", "payment"
-    )
+    fun parse(text: String): ParsedReceiptData {
+        Log.d(TAG, "📝 파싱 시작")
 
-    // 🏪 Store Name Pattern (Search in the first 1-3 lines)
-    private val storeNamePattern = Regex("""^[가-힣a-zA-Z0-9\s&.-]{2,30}$""")
-
-    // 📞 Phone Number Pattern
-    private val phonePattern = Regex("""0\d{1,2}-?\d{3,4}-?\d{4}""")
-
-    // 🏢 Business Registration Number Pattern
-    private val businessNumberPattern = Regex("""\d{3}-?\d{2}-?\d{5}""")
-
-    // 📍 Address Pattern
-    private val addressPattern = Regex("""[가-힣]+[시도]\s?[가-힣]+[시군구]\s?[가-힣\s\d-]+""")
-
-    // 📅 Date Patterns
-    private val datePatterns = listOf(
-        Regex("""(\d{4})[/-](\d{1,2})[/-](\d{1,2})"""),  // 2024-11-19, 2024/11/19
-        Regex("""(\d{4})\.(\d{1,2})\.(\d{1,2})"""),      // 2024.11.19
-        Regex("""(\d{2})[/-](\d{1,2})[/-](\d{1,2})""")   // 24-11-19
-    )
-
-    // ⏰ Time Pattern
-    private val timePattern = Regex("""(\d{1,2}):(\d{2})(?::(\d{2}))?""")
-
-    // 💳 Card Number Pattern (Masking)
-    private val cardPattern = Regex("""카드\s*[:\-]?\s*\*+(\d{4})""")
-
-    // 🧾 Approval Number Pattern
-    private val approvalPattern = Regex("""승인[번호]*\s*[:\-]?\s*(\d{8,})""")
-
-    // 📦 Item Line Patterns
-    // Pattern A: [Item Name] [Quantity] [Unit Price] [Total Price]
-    private val itemPatternA = Regex(
-        """^(.+?)\s+(\d+)\s+${moneyPattern.pattern}\s+${moneyPattern.pattern}$"""
-    )
-
-    // Pattern B: [Item Name] [Amount]
-    private val itemPatternB = Regex(
-        """^(.+?)\s+${moneyPattern.pattern}$"""
-    )
-
-    // Pattern C: [Item Name] x [Quantity] [Amount]
-    private val itemPatternC = Regex(
-        """^(.+?)\s*[xX*×]\s*(\d+)\s+${moneyPattern.pattern}$"""
-    )
-
-    // Keywords to exclude lines
-    private val excludeKeywords = listOf(
-        "전화", "tel", "사업자", "주소", "address", "대표", "고객센터",
-        "영수증", "receipt", "감사합니다", "thank", "방문", "visit",
-        "카드", "card", "현금", "cash", "승인", "일시", "date", "time"
-    )
-
-    /**
-     * Parses the receipt text and returns structured data.
-     */
-    fun parse(rawText: String): ParsedReceiptData {
-        Log.d(TAG, "========== Starting Receipt Parsing ==========")
-        Log.d(TAG, "Raw Text:\n$rawText")
-
-        // Preprocessing
-        val cleanedText = preprocessText(rawText)
-        val lines = cleanedText.lines()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-
-        Log.d(TAG, "Number of lines after preprocessing: ${lines.size}")
-
-        // Extracting information
-        val storeName = extractStoreName(lines)
-        val phoneNumber = extractPhoneNumber(lines)
-        val businessNumber = extractBusinessNumber(lines)
-        val address = extractAddress(lines)
-        val dateTime = extractDateTime(lines)
-        val totalAmount = extractTotalAmount(lines)
-        val paymentInfo = extractPaymentInfo(lines)
-        val items = extractItems(lines, totalAmount)
-
-        // Suggest Category
-        val suggestedCategory = suggestCategory(storeName, items)
-
-        Log.d(TAG, "========== Parsing Result ==========")
-        Log.d(TAG, "Store Name: $storeName")
-        Log.d(TAG, "Total Amount: $totalAmount")
-        Log.d(TAG, "Number of Items: ${items.size}")
-        Log.d(TAG, "Suggested Category: $suggestedCategory")
+        val lines = text.lines().filter { it.isNotBlank() }
 
         return ParsedReceiptData(
-            storeName = storeName,
-            storePhone = phoneNumber,
-            businessNumber = businessNumber,
-            storeAddress = address,
-            transactionDate = dateTime.first,
-            transactionTime = dateTime.second,
-            totalAmount = totalAmount,
-            paymentMethod = paymentInfo.first,
-            cardNumber = paymentInfo.second,
-            approvalNumber = paymentInfo.third,
-            items = items,
-            suggestedCategory = suggestedCategory,
-            rawText = rawText
+            storeName = extractStoreName(lines),
+            storePhone = extractPhoneNumber(text),
+            storeAddress = extractAddress(text),
+            businessNumber = extractBusinessNumber(text),
+            transactionDate = extractDate(text),
+            transactionTime = extractTime(text),
+            totalAmount = extractTotalAmount(text),
+            paymentMethod = extractPaymentMethod(text),
+            cardNumber = extractCardNumber(text),
+            approvalNumber = extractApprovalNumber(text),
+            items = extractItems(lines),
+            suggestedCategory = suggestCategory(text)
         )
     }
 
-    /**
-     * Text Preprocessing
-     */
-    private fun preprocessText(text: String): String {
-        return text
-            .replace("￦", "")
-            .replace("₩", "")
-            .replace("원", "")
-            .replace(Regex("""\s{2,}"""), " ")  // Replace multiple spaces with a single one
-            .trim()
-    }
-
-    /**
-     * Extracts store name (from the first 3 lines)
-     */
     private fun extractStoreName(lines: List<String>): String? {
-        return lines.take(3).firstOrNull { line ->
-            // Check if it's not a phone number, address, or business number, and has a suitable length
-            !phonePattern.containsMatchIn(line) &&
-                    !businessNumberPattern.containsMatchIn(line) &&
-                    !addressPattern.containsMatchIn(line) &&
-                    line.length in 2..30 &&
-                    storeNamePattern.matches(line)
-        }
-    }
-
-    /**
-     * Extracts phone number
-     */
-    private fun extractPhoneNumber(lines: List<String>): String? {
-        return lines.firstNotNullOfOrNull { line ->
-            phonePattern.find(line)?.value
-        }
-    }
-
-    /**
-     * Extracts business registration number
-     */
-    private fun extractBusinessNumber(lines: List<String>): String? {
-        return lines.firstNotNullOfOrNull { line ->
-            businessNumberPattern.find(line)?.value
-        }
-    }
-
-    /**
-     * Extracts address
-     */
-    private fun extractAddress(lines: List<String>): String? {
-        return lines.firstNotNullOfOrNull { line ->
-            addressPattern.find(line)?.value
-        }
-    }
-
-    /**
-     * Extracts date/time
-     */
-    private fun extractDateTime(lines: List<String>): Pair<Date?, String?> {
-        var date: Date? = null
-        var time: String? = null
-
-        for (line in lines) {
-            // Find Date
-            if (date == null) {
-                for (pattern in datePatterns) {
-                    val match = pattern.find(line)
-                    if (match != null) {
-                        try {
-                            val year = match.groupValues[1].toInt()
-                            val month = match.groupValues[2].toInt()
-                            val day = match.groupValues[3].toInt()
-
-                            val actualYear = if (year < 100) 2000 + year else year
-
-                            val calendar = Calendar.getInstance()
-                            calendar.set(actualYear, month - 1, day)
-                            date = calendar.time
-                            break
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Date parsing failed", e)
-                        }
-                    }
-                }
+        // 첫 몇 줄에서 상점명 추출
+        val storeName = lines.take(5)
+            .firstOrNull { line ->
+                line.length in 2..30 &&
+                        !line.contains(Regex("\\d{3}-\\d{3,4}-\\d{4}")) && // 전화번호 제외
+                        !line.contains(Regex("\\d{10}")) // 사업자번호 제외
             }
 
-            // Find Time
-            if (time == null) {
-                val timeMatch = timePattern.find(line)
-                if (timeMatch != null) {
-                    time = timeMatch.value
-                }
-            }
-
-            if (date != null && time != null) break
-        }
-
-        return Pair(date, time)
+        Log.d(TAG, "🏪 상점명: $storeName")
+        return storeName
     }
 
-    /**
-     * Extracts total amount
-     */
-    private fun extractTotalAmount(lines: List<String>): Int? {
-        // Find lines containing total amount keywords
-        for (line in lines) {
-            val lowerLine = line.lowercase()
-            val hasKeyword = totalKeywords.any { keyword ->
-                lowerLine.contains(keyword.lowercase())
-            }
+    private fun extractPhoneNumber(text: String): String? {
+        val phoneRegex = Regex("(\\d{2,3}[-.]?\\d{3,4}[-.]?\\d{4})")
+        val phone = phoneRegex.find(text)?.value
+        Log.d(TAG, "📞 전화번호: $phone")
+        return phone
+    }
 
-            if (hasKeyword) {
-                // Extract amount from that line
-                val amounts = extractMoneyFromLine(line)
-                if (amounts.isNotEmpty()) {
-                    Log.d(TAG, "Total amount found: $line -> ${amounts.maxOrNull()}")
-                    return amounts.maxOrNull()  // Return the largest amount
+    private fun extractAddress(text: String): String? {
+        val addressRegex = Regex("([가-힣]+[시도]\\s+[가-힣]+[시군구]\\s+[가-힣\\s]+)")
+        val address = addressRegex.find(text)?.value?.trim()
+        Log.d(TAG, "📍 주소: $address")
+        return address
+    }
+
+    private fun extractBusinessNumber(text: String): String? {
+        val bizNumRegex = Regex("(\\d{3}[-]?\\d{2}[-]?\\d{5})")
+        val bizNum = bizNumRegex.find(text)?.value
+        Log.d(TAG, "🏢 사업자번호: $bizNum")
+        return bizNum
+    }
+
+    private fun extractDate(text: String): Date? {
+        val datePatterns = listOf(
+            "yyyy-MM-dd" to Regex("(\\d{4})[-./](\\d{1,2})[-./](\\d{1,2})"),
+            "yyyy.MM.dd" to Regex("(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})"),
+            "yy-MM-dd" to Regex("(\\d{2})[-./](\\d{1,2})[-./](\\d{1,2})")
+        )
+
+        for ((pattern, regex) in datePatterns) {
+            val match = regex.find(text)
+            if (match != null) {
+                try {
+                    val dateFormat = SimpleDateFormat(pattern, Locale.KOREA)
+                    val date = dateFormat.parse(match.value)
+                    Log.d(TAG, "📅 날짜: $date")
+                    return date
+                } catch (e: Exception) {
+                    Log.w(TAG, "날짜 파싱 실패: ${match.value}")
                 }
             }
         }
 
-        // If no keyword found, search the largest amount in the last part
-        val lastLines = lines.takeLast(10)
-        val allAmounts = lastLines.flatMap { extractMoneyFromLine(it) }
-        return allAmounts.maxOrNull()
+        Log.d(TAG, "📅 날짜: null (인식 실패)")
+        return null
     }
 
-    /**
-     * Extracts payment information (method, card number, approval number)
-     */
-    private fun extractPaymentInfo(lines: List<String>): Triple<String?, String?, String?> {
-        var paymentMethod: String? = null
-        var cardNumber: String? = null
-        var approvalNumber: String? = null
+    private fun extractTime(text: String): String? {
+        val timeRegex = Regex("(\\d{1,2}):(\\d{2})(:\\d{2})?")
+        val time = timeRegex.find(text)?.value
+        Log.d(TAG, "⏰ 시간: $time")
+        return time
+    }
 
-        for (line in lines) {
-            val lowerLine = line.lowercase()
+    private fun extractTotalAmount(text: String): Int? {
+        val amountPatterns = listOf(
+            Regex("합\\s*계[:\\s]*([\\d,]+)"),
+            Regex("총\\s*액[:\\s]*([\\d,]+)"),
+            Regex("결제금액[:\\s]*([\\d,]+)"),
+            Regex("합계금액[:\\s]*([\\d,]+)")
+        )
 
-            // Payment Method
-            if (paymentMethod == null) {
-                when {
-                    lowerLine.contains("카드") || lowerLine.contains("card") -> paymentMethod = "card"
-                    lowerLine.contains("현금") || lowerLine.contains("cash") -> paymentMethod = "cash"
-                    lowerLine.contains("계좌") || lowerLine.contains("이체") -> paymentMethod = "transfer"
-                }
-            }
-
-            // Card Number
-            if (cardNumber == null) {
-                cardPattern.find(line)?.let {
-                    cardNumber = "**** " + it.groupValues[1]
-                }
-            }
-
-            // Approval Number
-            if (approvalNumber == null) {
-                approvalPattern.find(line)?.let {
-                    approvalNumber = it.groupValues[1]
+        for (pattern in amountPatterns) {
+            val match = pattern.find(text)
+            if (match != null) {
+                val amount = match.groupValues[1].replace(",", "").toIntOrNull()
+                if (amount != null && amount > 0) {
+                    Log.d(TAG, "💰 총액: $amount")
+                    return amount
                 }
             }
         }
 
-        return Triple(paymentMethod, cardNumber, approvalNumber)
+        Log.d(TAG, "💰 총액: null (인식 실패)")
+        return null
     }
 
-    /**
-     * Extracts list of items
-     */
-    private fun extractItems(lines: List<String>, totalAmount: Int?): List<ReceiptItem> {
+    private fun extractPaymentMethod(text: String): String? {
+        return when {
+            text.contains("신용카드") || text.contains("카드") -> "card"
+            text.contains("현금") -> "cash"
+            text.contains("계좌이체") || text.contains("이체") -> "transfer"
+            else -> null
+        }
+    }
+
+    private fun extractCardNumber(text: String): String? {
+        val cardRegex = Regex("\\*{4,}\\d{4}")
+        return cardRegex.find(text)?.value
+    }
+
+    private fun extractApprovalNumber(text: String): String? {
+        val approvalRegex = Regex("승인[번호]*[:\\s]*(\\d{8,})")
+        return approvalRegex.find(text)?.groupValues?.get(1)
+    }
+
+    private fun extractItems(lines: List<String>): List<ReceiptItem> {
         val items = mutableListOf<ReceiptItem>()
 
+        val itemRegex = Regex("([가-힣a-zA-Z\\s]+)\\s+(\\d+)\\s+([\\d,]+)")
+
         for (line in lines) {
-            // Check exclusion keywords
-            if (shouldExcludeLine(line)) continue
-
-            // Attempt pattern matching
-            var matched = false
-
-            // Pattern A: [Item Name] [Quantity] [Unit Price] [Total Price]
-            itemPatternA.matchEntire(line)?.let { match ->
+            val match = itemRegex.find(line)
+            if (match != null) {
                 try {
                     val name = match.groupValues[1].trim()
-                    val quantity = match.groupValues[2].toInt()
-                    val unitPrice = parseMoneyString(match.groupValues[3])
-                    val totalPrice = parseMoneyString(match.groupValues[4])
+                    val quantity = match.groupValues[2].toIntOrNull() ?: 1
+                    val price = match.groupValues[3].replace(",", "").toIntOrNull() ?: 0
 
-                    items.add(ReceiptItem(name, quantity, unitPrice, totalPrice))
-                    matched = true
-                } catch (e: Exception) {
-                    Log.e(TAG, "Pattern A parsing failed: $line", e)
-                }
-            }
-
-            if (matched) continue
-
-            // Pattern C: [Item Name] x [Quantity] [Total Price]
-            itemPatternC.matchEntire(line)?.let { match ->
-                try {
-                    val name = match.groupValues[1].trim()
-                    val quantity = match.groupValues[2].toInt()
-                    val totalPrice = parseMoneyString(match.groupValues[3])
-                    val unitPrice = if (quantity > 0) totalPrice / quantity else null
-
-                    items.add(ReceiptItem(name, quantity, unitPrice, totalPrice))
-                    matched = true
-                } catch (e: Exception) {
-                    Log.e(TAG, "Pattern C parsing failed: $line", e)
-                }
-            }
-
-            if (matched) continue
-
-            // Pattern B: [Item Name] [Amount]
-            itemPatternB.matchEntire(line)?.let { match ->
-                try {
-                    val name = match.groupValues[1].trim()
-                    val totalPrice = parseMoneyString(match.groupValues[2])
-
-                    // Exclude if item name is too short or just numbers
-                    if (name.length >= 2 && !name.matches(Regex("""\d+"""))) {
-                        items.add(ReceiptItem(name, 1, totalPrice, totalPrice))
+                    if (price > 0) {
+                        items.add(
+                            ReceiptItem(
+                                name = name,
+                                quantity = quantity,
+                                unitPrice = if (quantity > 0) price / quantity else null,
+                                totalPrice = price
+                            )
+                        )
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Pattern B parsing failed: $line", e)
+                    Log.w(TAG, "품목 파싱 오류: $line")
                 }
             }
         }
 
-        // Warning if total amount and item sum differ significantly
-        if (totalAmount != null && items.isNotEmpty()) {
-            val itemSum = items.sumOf { it.totalPrice }
-            val diff = kotlin.math.abs(totalAmount - itemSum)
-            if (diff > totalAmount * 0.1) {  // More than 10% difference
-                Log.w(TAG, "⚠️ Total amount ($totalAmount) and item sum ($itemSum) differ by $diff")
-            }
-        }
-
+        Log.d(TAG, "📦 품목 ${items.size}개 추출")
         return items
     }
 
-    /**
-     * Determines whether a line should be excluded
-     */
-    private fun shouldExcludeLine(line: String): Boolean {
-        val lowerLine = line.lowercase()
-        return excludeKeywords.any { lowerLine.contains(it) }
-    }
+    private fun suggestCategory(text: String): String {
+        val lowerText = text.lowercase()
 
-    /**
-     * Extracts all amounts from a single line
-     */
-    private fun extractMoneyFromLine(line: String): List<Int> {
-        return moneyPattern.findAll(line)
-            .mapNotNull { parseMoneyString(it.value) }
-            .toList()
-    }
-
-    /**
-     * Converts a money string to Int
-     */
-    private fun parseMoneyString(str: String): Int {
-        return str.replace(",", "")
-            .replace("원", "")
-            .toInt()
-    }
-
-    /**
-     * Suggests a category
-     */
-    private fun suggestCategory(storeName: String?, items: List<ReceiptItem>): String {
-        val name = storeName?.lowercase() ?: ""
-
-        // Store name based
         return when {
-            name.contains("스타벅스") || name.contains("카페") || name.contains("coffee") ||
-                    name.contains("gs25") || name.contains("cu") || name.contains("편의점") ||
-                    name.contains("맥도날드") || name.contains("버거킹") || name.contains("롯데리아") -> "food"
+            lowerText.contains("스타벅스") ||
+                    lowerText.contains("카페") ||
+                    lowerText.contains("음식") ||
+                    lowerText.contains("식당") ||
+                    lowerText.contains("치킨") ||
+                    lowerText.contains("피자") -> "food"
 
-            name.contains("지하철") || name.contains("버스") || name.contains("택시") ||
-                    name.contains("주유") || name.contains("oil") -> "transport"
+            lowerText.contains("gs25") ||
+                    lowerText.contains("cu") ||
+                    lowerText.contains("세븐일레븐") ||
+                    lowerText.contains("편의점") -> "food"
 
-            name.contains("쿠팡") || name.contains("마켓") || name.contains("mart") ||
-                    name.contains("이마트") || name.contains("홈플러스") -> "shopping"
+            lowerText.contains("택시") ||
+                    lowerText.contains("버스") ||
+                    lowerText.contains("지하철") ||
+                    lowerText.contains("주유") -> "transport"
 
-            else -> {
-                // Item based
-                val itemNames = items.joinToString(" ") { it.name.lowercase() }
-                when {
-                    itemNames.contains("커피") || itemNames.contains("라떼") ||
-                            itemNames.contains("음료") || itemNames.contains("김밥") -> "food"
+            lowerText.contains("이마트") ||
+                    lowerText.contains("쿠팡") ||
+                    lowerText.contains("다이소") ||
+                    lowerText.contains("올리브영") -> "shopping"
 
-                    itemNames.contains("휘발유") || itemNames.contains("경유") -> "transport"
-                    else -> "others"
-                }
-            }
+            else -> "others"
         }
     }
 }
-
-/**
- * Parsed Receipt Data
- */
-data class ParsedReceiptData(
-    val storeName: String?,
-    val storePhone: String?,
-    val businessNumber: String?,
-    val storeAddress: String?,
-    val transactionDate: Date?,
-    val transactionTime: String?,
-    val totalAmount: Int?,
-    val paymentMethod: String?,
-    val cardNumber: String?,
-    val approvalNumber: String?,
-    val items: List<ReceiptItem>,
-    val suggestedCategory: String,
-    val rawText: String
-)
-
-/**
- * Parsed Item
- */
-data class ReceiptItem(
-    val name: String,
-    val quantity: Int,
-    val unitPrice: Int?,
-    val totalPrice: Int
-)

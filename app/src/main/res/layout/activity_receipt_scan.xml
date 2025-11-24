@@ -142,6 +142,23 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- ✅ 저장 및 수정 버튼 추가 -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveAndEdit"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="저장 및 수정"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@color/primary_purple"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_receipt"
+                app:iconGravity="textStart"
+                app:iconTint="@color/white" />
+
             <!-- Result Section -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

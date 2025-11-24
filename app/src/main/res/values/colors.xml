@@ -1,40 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Primary Colors -->
+    <color name="primary_purple">#6366F1</color>
+    <color name="primary_purple_light">#818CF8</color>
+    <color name="primary_purple_dark">#4F46E5</color>
 
-    <!-- Receiptify Theme Colors -->
-    <color name="primary_purple">#7C3AED</color>
-    <color name="primary_purple_dark">#6D28D9</color>
-    <color name="primary_purple_light">#8B5CF6</color>
-    <color name="background_light">#F5F3FF</color>
-    <color name="background_white">#FFFFFF</color>
-    <color name="text_primary">#1F2937</color>
+    <!-- Background Colors -->
+    <color name="background_light">#F9FAFB</color>
+    <color name="background_dark">#1F2937</color>
+
+    <!-- Surface Colors -->
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_dark">#374151</color>
+
+    <!-- Card Background -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_background_dark">#374151</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#111827</color>
+    <color name="text_primary_dark">#F9FAFB</color>
     <color name="text_secondary">#6B7280</color>
+    <color name="text_secondary_dark">#9CA3AF</color>
+
+    <!-- Other Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="divider">#E5E7EB</color>
+    <color name="divider_dark">#4B5563</color>
+
+    <!-- Social Login Colors -->
     <color name="naver_green">#03C75A</color>
-    <color name="google_red">#DB4437</color>
+    <color name="google_blue">#4285F4</color>
+
+    <!-- Error Color -->
     <color name="error_red">#EF4444</color>
 
     <!-- Category Colors -->
-    <color name="category_food">#F59E0B</color>
+    <color name="category_food">#EF4444</color>
     <color name="category_transport">#3B82F6</color>
-    <color name="category_shopping">#EC4899</color>
-    <color name="category_others">#6B7280</color>
-
-    <!-- Healthcare -->
+    <color name="category_shopping">#F59E0B</color>
     <color name="category_healthcare">#10B981</color>
-
-    <!-- Entertainment -->
     <color name="category_entertainment">#8B5CF6</color>
-
-    <!-- Utilities -->
-    <color name="category_utilities">#6B7280</color>
-
-    <!-- Gradient Colors -->
-    <color name="gradient_start">#8B5CF6</color>
-    <color name="gradient_end">#7C3AED</color>
-
-    <!-- Card Colors -->
-    <color name="card_background">#FFFFFF</color>
-    <color name="divider">#E5E7EB</color>
+    <color name="category_utilities">#06B6D4</color>
+    <color name="category_others">#6B7280</color>
 </resources>

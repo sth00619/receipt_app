@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Text Colors for Dark Mode -->
+    <color name="text_primary">@color/text_primary_dark</color>
+    <color name="text_secondary">@color/text_secondary_dark</color>
+
+    <!-- Background for Dark Mode -->
+    <color name="background_light">@color/background_dark</color>
+
+    <!-- Surface for Dark Mode -->
+    <color name="surface_light">@color/surface_dark</color>
+
+    <!-- Card Background for Dark Mode -->
+    <color name="card_background">@color/card_background_dark</color>
+
+    <!-- Divider for Dark Mode -->
+    <color name="divider">@color/divider_dark</color>
+</resources>
