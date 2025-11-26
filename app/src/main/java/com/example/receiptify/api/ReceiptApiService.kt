@@ -77,6 +77,35 @@ interface ReceiptApiService {
         @Body request: UpdateSettingRequest
     ): Response<ApiResponse<UserResponse>>
 
+    // 알림 목록 조회
+    @GET("notifications")
+    suspend fun getNotifications(
+        @Query("limit") limit: Int = 50,
+        @Query("unreadOnly") unreadOnly: Boolean = false
+    ): Response<ApiResponse<NotificationsResponse>>
+
+    // 알림 읽음 처리
+    @PUT("notifications/{id}/read")
+    suspend fun markNotificationAsRead(
+        @Path("id") id: String
+    ): Response<ApiResponse<NotificationItem>>
+
+    // 모든 알림 읽음 처리
+    @PUT("notifications/read-all")
+    suspend fun markAllNotificationsAsRead(): Response<ApiResponse<Unit>>
+
+    // 알림 삭제
+    @DELETE("notifications/{id}")
+    suspend fun deleteNotification(
+        @Path("id") id: String
+    ): Response<ApiResponse<Unit>>
+
+    // 챗봇 메시지 전송
+    @POST("chatbot/message")
+    suspend fun sendChatbotMessage(
+        @Body request: Map<String, String>
+    ): Response<ApiResponse<Map<String, Any>>>
+
     // ============ 영수증 관련 API ============
 
     // Health Check

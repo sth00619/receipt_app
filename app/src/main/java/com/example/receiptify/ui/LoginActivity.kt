@@ -50,7 +50,7 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d(TAG, "🚀 onCreate started")
+        Log.d(TAG, "🚀 LoginActivity onCreate started")
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         authRepository = AuthRepository(this)
@@ -62,18 +62,41 @@ class LoginActivity : AppCompatActivity() {
         // 네이버 OAuth 콜백 처리
         handleNaverOAuthCallback()
 
+        // ✅ 단순하게: JWT 토큰만 체크
         checkLoginStatusAndProceed()
+    }
+
+    /**
+     * ✅ 로그인 화면 표시 (별도 메서드)
+     */
+    private fun showLoginScreen() {
+        Log.d(TAG, "📺 로그인 화면 표시 중...")
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setupClickListeners()
+        Log.d(TAG, "✅ 로그인 화면 표시 완료")
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Log.d(TAG, "onNewIntent called")
         setIntent(intent)
-        handleNaverOAuthCallback()
+
+        // ✅ onNewIntent에서도 FROM_LOGOUT 체크
+        val isFromLogout = intent.getBooleanExtra("FROM_LOGOUT", false)
+        if (isFromLogout) {
+            Log.d(TAG, "✅ onNewIntent: 로그아웃 플래그 감지")
+            if (!::binding.isInitialized) {
+                showLoginScreen()
+            }
+        } else {
+            handleNaverOAuthCallback()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "onResume called")
         handleNaverOAuthCallback()
     }
 
@@ -110,7 +133,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        // JWT 토큰 확인 (가장 중요!)
+        // JWT 토큰 확인
         val isLoggedIn = authRepository.isLoggedIn()
 
         Log.d(TAG, "🔐 로그인 상태 확인 - JWT 토큰 있음: $isLoggedIn")
@@ -125,9 +148,7 @@ class LoginActivity : AppCompatActivity() {
             navigateToMain()
         } else {
             Log.d(TAG, "❌ JWT 토큰 없음 - 로그인 화면 표시")
-            binding = ActivityLoginBinding.inflate(layoutInflater)
-            setContentView(binding.root)
-            setupClickListeners()
+            showLoginScreen()
         }
     }
 
@@ -151,6 +172,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        Log.d(TAG, "⚙️ setupClickListeners 시작")
+
         // 일반 로그인
         binding.btnLogin.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
@@ -173,8 +196,10 @@ class LoginActivity : AppCompatActivity() {
 
         // 회원가입 이동
         binding.tvSignUp.setOnClickListener {
-            startActivity(Intent(this, SignUpActivity::class.java))
+            startActivity(Intent(this@LoginActivity, SignUpActivity::class.java))
         }
+
+        Log.d(TAG, "✅ setupClickListeners 완료")
     }
 
     private fun validateInput(email: String, password: String): Boolean {
@@ -199,9 +224,6 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 일반 이메일 로그인
-     */
     private fun loginWithEmail(email: String, password: String) {
         lifecycleScope.launch {
             try {
@@ -213,7 +235,6 @@ class LoginActivity : AppCompatActivity() {
                 result.onSuccess { userData ->
                     Log.d(TAG, "✅ 로그인 성공: ${userData.email}")
 
-                    // ✅ 토큰 저장 확인
                     verifyTokenSaved()
 
                     Toast.makeText(
@@ -244,7 +265,6 @@ class LoginActivity : AppCompatActivity() {
     private fun signInWithNaver() {
         Log.d(TAG, "🟢 Naver login button clicked")
 
-        // ✅ JWT 토큰으로 로그인 상태 확인
         val isLoggedIn = authRepository.isLoggedIn()
         if (isLoggedIn) {
             Log.d(TAG, "✅ 이미 로그인됨 (JWT 토큰 존재)")
@@ -285,9 +305,6 @@ class LoginActivity : AppCompatActivity() {
         NaverIdLoginSDK.authenticate(this, oauthLoginCallback)
     }
 
-    /**
-     * ✅ 네이버 사용자 프로필 가져오기 및 백엔드 인증
-     */
     private fun getNaverUserProfile() {
         Log.d(TAG, "🟢 Getting Naver user profile...")
 
@@ -300,7 +317,6 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "✅ Naver profile retrieved: $email")
 
                 if (naverToken != null) {
-                    // ✅ 백엔드로 네이버 토큰 전송하여 JWT 받기
                     lifecycleScope.launch {
                         sendNaverTokenToBackend(naverToken, email, name)
                     }
@@ -327,9 +343,6 @@ class LoginActivity : AppCompatActivity() {
         })
     }
 
-    /**
-     * ✅ 네이버 토큰을 백엔드로 전송하여 JWT 받기
-     */
     private suspend fun sendNaverTokenToBackend(
         naverToken: String,
         email: String?,
@@ -344,7 +357,6 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "✅ 네이버 로그인 성공!")
                 Log.d(TAG, "👤 사용자: ${userData.email}")
 
-                // ✅ 토큰 저장 확인
                 verifyTokenSaved()
 
                 runOnUiThread {
@@ -380,9 +392,6 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * ✅ 구글 토큰을 백엔드로 전송하여 JWT 받기
-     */
     private suspend fun sendGoogleTokenToBackend(
         idToken: String,
         email: String?,
@@ -398,7 +407,6 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "✅ 구글 로그인 성공!")
                 Log.d(TAG, "👤 사용자: ${userData.email}")
 
-                // ✅ 토큰 저장 확인
                 verifyTokenSaved()
 
                 runOnUiThread {
@@ -434,9 +442,6 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * ✅ 토큰이 제대로 저장되었는지 확인 (디버깅용)
-     */
     private fun verifyTokenSaved() {
         val savedToken = authRepository.getToken()
 
@@ -446,7 +451,6 @@ class LoginActivity : AppCompatActivity() {
             Log.e(TAG, "❌ 토큰 저장 실패!")
         }
 
-        // 모든 키 출력
         val allKeys = prefs.all.keys
         Log.d(TAG, "📦 SharedPreferences 모든 키: $allKeys")
     }
@@ -467,7 +471,6 @@ class LoginActivity : AppCompatActivity() {
 
                     Log.d(TAG, "✅ Google ID Token retrieved: ${idToken.take(50)}...")
 
-                    // ✅ 백엔드로 구글 토큰 전송하여 JWT 받기
                     lifecycleScope.launch {
                         sendGoogleTokenToBackend(idToken, email, name, photoUrl)
                     }
@@ -491,7 +494,7 @@ class LoginActivity : AppCompatActivity() {
         Log.d(TAG, "🚀 navigateToMain() CALLED")
 
         try {
-            val intent = Intent(this, HomeActivity::class.java).apply {
+            val intent = Intent(this@LoginActivity, HomeActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
 

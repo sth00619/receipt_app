@@ -173,8 +173,55 @@ data class UserStats(
     @SerializedName("totalTransactions")
     val totalTransactions: Int = 0,
 
+    @SerializedName("monthlyReceipts")
+    val monthlyReceipts: Int = 0,
+
     @SerializedName("totalSpending")
     val totalSpending: Double = 0.0
+)
+
+// 알림 모델
+data class NotificationItem(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("userId")
+    val userId: String,
+
+    @SerializedName("type")
+    val type: String,  // budget_warning, spending_alert, category_alert, tip, monthly_summary
+
+    @SerializedName("title")
+    val title: String,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("category")
+    val category: String?,
+
+    @SerializedName("amount")
+    val amount: Double,
+
+    @SerializedName("isRead")
+    val isRead: Boolean,
+
+    @SerializedName("priority")
+    val priority: String,  // low, medium, high
+
+    @SerializedName("metadata")
+    val metadata: Map<String, Any>?,
+
+    @SerializedName("createdAt")
+    val createdAt: String
+)
+
+data class NotificationsResponse(
+    @SerializedName("notifications")
+    val notifications: List<NotificationItem>,
+
+    @SerializedName("unreadCount")
+    val unreadCount: Int
 )
 
 // ==================== 영수증 관련 모델 ====================

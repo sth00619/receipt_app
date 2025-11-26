@@ -367,17 +367,23 @@ class CategoriesActivity : AppCompatActivity() {
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    startActivity(Intent(this, HomeActivity::class.java))
+                    // ✅ 명시적으로 Context 지정
+                    val intent = Intent(this@CategoriesActivity, HomeActivity::class.java)
+                    startActivity(intent)
                     finish()
                     true
                 }
                 R.id.nav_categories -> true
                 R.id.nav_receipts -> {
-                    startActivity(Intent(this, ReceiptScanActivity::class.java))
+                    // ✅ 명시적으로 Context 지정
+                    val intent = Intent(this@CategoriesActivity, ReceiptScanActivity::class.java)
+                    startActivity(intent)
                     false
                 }
                 R.id.nav_profile -> {
-                    startActivity(Intent(this, ProfileActivity::class.java))
+                    // ✅ 명시적으로 Context 지정
+                    val intent = Intent(this@CategoriesActivity, ProfileActivity::class.java)
+                    startActivity(intent)
                     false
                 }
                 else -> false

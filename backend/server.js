@@ -7,6 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const notificationsRouter = require('./src/routes/notifications');
+const chatbotRouter = require('./src/routes/chatbot');
+
 // 미들웨어
 app.use(cors());
 app.use(express.json());
@@ -39,6 +42,9 @@ app.use('/api/auth', require('./src/routes/auth'));  // 인증 라우트는 미�
 // ✅ 보호된 라우트 (verifyAuth 미들웨어 사용)
 app.use('/api/users', verifyAuth, require('./src/routes/users'));
 app.use('/api/receipts', verifyAuth, require('./src/routes/receipts'));
+
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/chatbot', chatbotRouter);
 
 // 404 핸들러
 app.use((req, res) => {
