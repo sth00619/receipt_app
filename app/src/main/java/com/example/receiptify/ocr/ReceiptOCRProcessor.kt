@@ -1,5 +1,6 @@
 package com.example.receiptify.ocr
 
+import android.R.attr.text
 import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -23,6 +24,8 @@ class ReceiptOCRProcessor {
             .addOnSuccessListener { visionText ->
                 val extractedText = visionText.text
                 Log.d(TAG, "✅ OCR 성공\n텍스트:\n$extractedText")
+                Log.d("OCR_RAW", "\n========== OCR RAW ==========\n$text\n===========================\n")
+
 
                 try {
                     val parsedData = parser.parse(extractedText)

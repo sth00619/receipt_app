@@ -1,8 +1,9 @@
 package com.example.receiptify.ocr
 
+import android.icu.text.SimpleDateFormat
 import android.util.Log
-import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Date
 
 class AdvancedReceiptParser {
 
@@ -32,12 +33,16 @@ class AdvancedReceiptParser {
     }
 
     private fun extractStoreName(lines: List<String>): String? {
-        // 첫 몇 줄에서 상점명 추출
-        val storeName = lines.take(5)
+        val headerKeywords = listOf("상품명", "수량", "단가", "금액")
+
+        val storeName = lines
+            .take(6) // 위에서 5~6줄만 후보로
             .firstOrNull { line ->
-                line.length in 2..30 &&
-                        !line.contains(Regex("\\d{3}-\\d{3,4}-\\d{4}")) && // 전화번호 제외
-                        !line.contains(Regex("\\d{10}")) // 사업자번호 제외
+                val trimmed = line.trim()
+                trimmed.isNotEmpty() &&
+                        headerKeywords.none { trimmed.contains(it) } &&          // 헤더 아님
+                        !trimmed.matches(Regex("^[0-9\\-:년월일시 ]+$")) &&     // 날짜/시간/숫자 덩어리 아님
+                        !trimmed.contains("전화")                               // 전화 라인 아님
             }
 
         Log.d(TAG, "🏪 상점명: $storeName")
@@ -66,29 +71,14 @@ class AdvancedReceiptParser {
     }
 
     private fun extractDate(text: String): Date? {
-        val datePatterns = listOf(
-            "yyyy-MM-dd" to Regex("(\\d{4})[-./](\\d{1,2})[-./](\\d{1,2})"),
-            "yyyy.MM.dd" to Regex("(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})"),
-            "yy-MM-dd" to Regex("(\\d{2})[-./](\\d{1,2})[-./](\\d{1,2})")
-        )
+        val pattern = Regex("일시[:\\s]*(\\d{4})-(\\d{2})-(\\d{2})\\s+(\\d{2}):(\\d{2})")
+        val match = pattern.find(text) ?: return null
 
-        for ((pattern, regex) in datePatterns) {
-            val match = regex.find(text)
-            if (match != null) {
-                try {
-                    val dateFormat = SimpleDateFormat(pattern, Locale.KOREA)
-                    val date = dateFormat.parse(match.value)
-                    Log.d(TAG, "📅 날짜: $date")
-                    return date
-                } catch (e: Exception) {
-                    Log.w(TAG, "날짜 파싱 실패: ${match.value}")
-                }
-            }
-        }
-
-        Log.d(TAG, "📅 날짜: null (인식 실패)")
-        return null
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)
+        val dateString = "${match.groupValues[1]}-${match.groupValues[2]}-${match.groupValues[3]} ${match.groupValues[4]}:${match.groupValues[5]}"
+        return formatter.parse(dateString)
     }
+
 
     private fun extractTime(text: String): String? {
         val timeRegex = Regex("(\\d{1,2}):(\\d{2})(:\\d{2})?")
@@ -98,27 +88,11 @@ class AdvancedReceiptParser {
     }
 
     private fun extractTotalAmount(text: String): Int? {
-        val amountPatterns = listOf(
-            Regex("합\\s*계[:\\s]*([\\d,]+)"),
-            Regex("총\\s*액[:\\s]*([\\d,]+)"),
-            Regex("결제금액[:\\s]*([\\d,]+)"),
-            Regex("합계금액[:\\s]*([\\d,]+)")
-        )
-
-        for (pattern in amountPatterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                val amount = match.groupValues[1].replace(",", "").toIntOrNull()
-                if (amount != null && amount > 0) {
-                    Log.d(TAG, "💰 총액: $amount")
-                    return amount
-                }
-            }
-        }
-
-        Log.d(TAG, "💰 총액: null (인식 실패)")
-        return null
+        val pattern = Regex("총액[:\\s]*([\\d,]+)[^0-9]*")
+        val match = pattern.find(text) ?: return null
+        return match.groupValues[1].replace(",", "").toInt()
     }
+
 
     private fun extractPaymentMethod(text: String): String? {
         return when {
@@ -142,63 +116,70 @@ class AdvancedReceiptParser {
     private fun extractItems(lines: List<String>): List<ReceiptItem> {
         val items = mutableListOf<ReceiptItem>()
 
-        val itemRegex = Regex("([가-힣a-zA-Z\\s]+)\\s+(\\d+)\\s+([\\d,]+)")
+        // 예: "1) 토피 넛 라떼 / 수량: 1 / 단가: 6,500 / 금액: 6,500"
+        val regex = Regex(
+            """\d+\)\s*(.+?)\s*/\s*수량[:\s]*(\d+)\s*/\s*단가[:\s]*([\d,]+)\s*/\s*금액[:\s]*([\d,]+)"""
+        )
 
         for (line in lines) {
-            val match = itemRegex.find(line)
-            if (match != null) {
-                try {
-                    val name = match.groupValues[1].trim()
-                    val quantity = match.groupValues[2].toIntOrNull() ?: 1
-                    val price = match.groupValues[3].replace(",", "").toIntOrNull() ?: 0
+            val m = regex.find(line) ?: continue
 
-                    if (price > 0) {
-                        items.add(
-                            ReceiptItem(
-                                name = name,
-                                quantity = quantity,
-                                unitPrice = if (quantity > 0) price / quantity else null,
-                                totalPrice = price
-                            )
-                        )
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "품목 파싱 오류: $line")
-                }
-            }
+            val name = m.groupValues[1].trim()
+            val qty = m.groupValues[2].toInt()
+            val unit = m.groupValues[3].replace(",", "").toInt()
+            val total = m.groupValues[4].replace(",", "").toInt()
+
+            items.add(
+                ReceiptItem(
+                    name = name,
+                    quantity = qty,
+                    unitPrice = unit,
+                    totalPrice = total
+                )
+            )
         }
 
-        Log.d(TAG, "📦 품목 ${items.size}개 추출")
         return items
     }
 
+
+
+
     private fun suggestCategory(text: String): String {
-        val lowerText = text.lowercase()
+        val t = text.lowercase()
 
-        return when {
-            lowerText.contains("스타벅스") ||
-                    lowerText.contains("카페") ||
-                    lowerText.contains("음식") ||
-                    lowerText.contains("식당") ||
-                    lowerText.contains("치킨") ||
-                    lowerText.contains("피자") -> "food"
+        // 1️⃣ 편의점
+        val convenienceKeywords = listOf("cu", "gs25", "세븐일레븐", "이마트24", "편의점")
+        if (convenienceKeywords.any { t.contains(it) }) return "convenience"
 
-            lowerText.contains("gs25") ||
-                    lowerText.contains("cu") ||
-                    lowerText.contains("세븐일레븐") ||
-                    lowerText.contains("편의점") -> "food"
+        // 2️⃣ 카페 / 커피
+        val cafeKeywords = listOf("스타벅스", "이디야", "투썸", "카페", "할리스", "커피")
+        if (cafeKeywords.any { t.contains(it) }) return "cafe"
 
-            lowerText.contains("택시") ||
-                    lowerText.contains("버스") ||
-                    lowerText.contains("지하철") ||
-                    lowerText.contains("주유") -> "transport"
+        // 3️⃣ 음식점(대분류)
+        val restaurantKeywords = listOf(
+            "식당", "국밥", "순두부", "덮밥", "칼국수", "보쌈", "떡볶이",
+            "고기", "삼겹살", "버거", "라멘", "라면", "돈까스", "카츠"
+        )
+        if (restaurantKeywords.any { t.contains(it) }) return "food"
 
-            lowerText.contains("이마트") ||
-                    lowerText.contains("쿠팡") ||
-                    lowerText.contains("다이소") ||
-                    lowerText.contains("올리브영") -> "shopping"
+        // 4️⃣ 우리가 사용하는 고유 매장들 (화이트리스트)
+        val ourShops = listOf(
+            "아소코", "나진국밥", "온달네", "쪼매매운", "쪼매매운떡볶이",
+            "세겹먹는날", "공릉순두부", "엽기떡볶이", "동대문엽기떡볶이",
+            "버거킹", "맥도날드", "던킨"
+        )
+        if (ourShops.any { t.contains(it) }) return "food"
 
-            else -> "others"
-        }
+        // 5️⃣ 교통
+        val transportKeywords = listOf("택시", "버스", "지하철", "요금", "주유")
+        if (transportKeywords.any { t.contains(it) }) return "transport"
+
+        // 6️⃣ 쇼핑
+        val shoppingKeywords = listOf("다이소", "올리브영", "쿠팡", "이마트")
+        if (shoppingKeywords.any { t.contains(it) }) return "shopping"
+
+        return "others"
     }
+
 }
