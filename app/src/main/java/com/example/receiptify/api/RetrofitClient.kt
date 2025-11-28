@@ -1,6 +1,7 @@
 package com.example.receiptify.api
 
 import android.content.Context
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 import okhttp3.Interceptor
@@ -10,78 +11,88 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-/**
- * RetrofitClient 객체는 API 통신을 위한 싱글톤 OkHttpClient와 Retrofit 인스턴스를 관리합니다.
- * JWT 토큰 또는 Firebase ID 토큰을 자동으로 요청 헤더에 추가하는 인터셉터를 포함합니다.
- */
 object RetrofitClient {
 
     private const val BASE_URL = "http://10.0.2.2:3000/api/"
+    private const val TAG = "RetrofitClient"
 
-    // Context를 저장하여 SharedPreferences 접근에 사용
     private var appContext: Context? = null
 
-    /**
-     * Context 초기화 (Application 클래스에서 반드시 호출되어야 함)
-     */
     fun init(context: Context) {
         appContext = context.applicationContext
+        Log.d(TAG, "✅ RetrofitClient 초기화 완료")
     }
 
-    // 🔑 인증 토큰을 자동으로 헤더에 추가하는 인터셉터
+    // 인증 토큰을 자동으로 헤더에 추가하는 인터셉터
     private val authInterceptor = Interceptor { chain ->
         val originalRequest = chain.request()
 
-        // 1. SharedPreferences에서 JWT 토큰 가져오기 (백엔드 인증 토큰)
+        // 1. SharedPreferences에서 JWT 토큰 가져오기
         val jwtToken = appContext?.getSharedPreferences("receiptify_auth", Context.MODE_PRIVATE)
             ?.getString("auth_token", null)
 
+        if (jwtToken != null) {
+            Log.d(TAG, "🔑 JWT 토큰 발견: ${jwtToken.take(30)}...")
+        } else {
+            Log.w(TAG, "⚠️ JWT 토큰 없음")
+        }
+
         val newRequest = if (jwtToken != null) {
-            // 1-1. JWT 토큰이 있을 경우, 이를 사용하여 요청 헤더를 빌드
-            originalRequest.newBuilder()
+            // JWT 토큰을 Authorization 헤더에 추가
+            val requestWithAuth = originalRequest.newBuilder()
                 .addHeader("Authorization", "Bearer $jwtToken")
                 .build()
+
+            Log.d(TAG, "📤 요청: ${originalRequest.method} ${originalRequest.url}")
+            Log.d(TAG, "📤 Authorization 헤더 추가됨")
+
+            requestWithAuth
         } else {
-            // 2. JWT 토큰이 없을 경우, Firebase ID 토큰 시도 (하위 호환성/Firebase 전용 인증)
+            // 2. JWT 토큰이 없으면 Firebase ID 토큰 시도
             val currentUser = FirebaseAuth.getInstance().currentUser
 
             if (currentUser != null) {
                 try {
-                    // 주의: .result를 사용하면 메인 스레드 블로킹 경고가 발생할 수 있음.
-                    // OkHttp Interceptor는 일반적으로 백그라운드 스레드에서 실행되므로 안전합니다.
                     val firebaseToken = currentUser.getIdToken(false).result?.token
 
                     if (firebaseToken != null) {
+                        Log.d(TAG, "🔥 Firebase 토큰 사용: ${firebaseToken.take(30)}...")
                         originalRequest.newBuilder()
                             .addHeader("Authorization", "Bearer $firebaseToken")
                             .build()
                     } else {
+                        Log.w(TAG, "⚠️ Firebase 토큰도 없음")
                         originalRequest
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("RetrofitClient", "Failed to get Firebase token", e)
+                    Log.e(TAG, "❌ Firebase 토큰 가져오기 실패", e)
                     originalRequest
                 }
             } else {
-                // 3. 토큰이 없는 경우, 오리지널 요청 그대로 진행
+                Log.w(TAG, "⚠️ 인증 정보 없음 - 원본 요청 전송")
                 originalRequest
             }
         }
 
-        chain.proceed(newRequest)
+        // 요청 전송
+        val response = chain.proceed(newRequest)
+
+        // 응답 로깅
+        Log.d(TAG, "📥 응답: ${response.code} ${response.message}")
+
+        response
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        // 네트워크 요청 및 응답 본문을 포함하여 로그 레벨 설정
         level = HttpLoggingInterceptor.Level.BODY
     }
 
     private val client = OkHttpClient.Builder()
-        .addInterceptor(authInterceptor)  // 🔑 인증 인터셉터 추가
-        .addInterceptor(loggingInterceptor) // 로깅 인터셉터 추가
-        .connectTimeout(30, TimeUnit.SECONDS) // 연결 제한 시간
-        .readTimeout(30, TimeUnit.SECONDS)    // 읽기 제한 시간
-        .writeTimeout(30, TimeUnit.SECONDS)   // 쓰기 제한 시간
+        .addInterceptor(authInterceptor)
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     private val retrofit = Retrofit.Builder()
@@ -90,21 +101,14 @@ object RetrofitClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    // ReceiptApiService 인터페이스 구현체
     val api: ReceiptApiService = retrofit.create(ReceiptApiService::class.java)
-
-    // receiptApi 추가 (api와 동일한 인스턴스)
     val receiptApi: ReceiptApiService = api
 
-    /**
-     * Firebase ID Token을 명시적으로 갱신할 때 사용 (JWT 사용 시에는 필요 없음)
-     */
     suspend fun refreshToken(): String? {
         return try {
-            // true를 전달하여 토큰 강제 갱신
             FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token
         } catch (e: Exception) {
-            android.util.Log.e("RetrofitClient", "Failed to refresh Firebase token", e)
+            Log.e(TAG, "❌ Firebase 토큰 갱신 실패", e)
             null
         }
     }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/layoutMessage"
+    android:id="@+id/layoutMessageContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
@@ -11,32 +11,31 @@
         android:id="@+id/cardMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start"
         app:cardCornerRadius="16dp"
         app:cardElevation="2dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="280dp"
             android:orientation="vertical"
             android:padding="12dp">
 
+            <!-- 메시지 텍스트 -->
             <TextView
                 android:id="@+id/tvMessage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="메시지 내용"
+                android:maxWidth="250dp"
+                android:text="안녕하세요!"
                 android:textSize="14sp" />
 
+            <!-- 시간 -->
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
                 android:layout_marginTop="4dp"
-                android:text="13:30"
-                android:textColor="@color/text_secondary"
+                android:text="14:30"
                 android:textSize="10sp" />
 
         </LinearLayout>

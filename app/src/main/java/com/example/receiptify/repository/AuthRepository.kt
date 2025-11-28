@@ -4,11 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.example.receiptify.api.RetrofitClient
-import com.example.receiptify.api.models.LoginRequest
-import com.example.receiptify.api.models.NaverLoginRequest
-import com.example.receiptify.api.models.RegisterRequest
-import com.example.receiptify.api.models.UserData
-import com.example.receiptify.api.models.VerifyTokenRequest
+import com.example.receiptify.api.models.*
 
 class AuthRepository(context: Context) {
 
@@ -104,7 +100,7 @@ class AuthRepository(context: Context) {
     }
 
     /**
-     * ✅ 네이버 로그인 (새로 추가)
+     * 네이버 로그인
      */
     suspend fun loginWithNaver(
         accessToken: String,
@@ -148,7 +144,7 @@ class AuthRepository(context: Context) {
     }
 
     /**
-     * ✅ 구글 로그인 (새로 추가)
+     * 구글 로그인
      */
     suspend fun loginWithGoogle(
         idToken: String,
@@ -159,7 +155,7 @@ class AuthRepository(context: Context) {
         return try {
             Log.d(TAG, "🔵 구글 로그인 시도: $email")
 
-            val request = com.example.receiptify.api.models.GoogleLoginRequest(idToken, email, name, photoUrl)
+            val request = GoogleLoginRequest(idToken, email, name, photoUrl)
             val response = api.loginWithGoogle(request)
 
             Log.d(TAG, "응답 코드: ${response.code()}")
@@ -196,20 +192,21 @@ class AuthRepository(context: Context) {
         return try {
             val token = getToken()
             if (token == null) {
+                Log.w(TAG, "⚠️ 검증할 토큰이 없음")
                 return Result.failure(Exception("No token found"))
             }
 
-            Log.d(TAG, "🔍 토큰 검증 중...")
+            Log.d(TAG, "🔍 토큰 검증 중: ${token.take(30)}...")
 
             val request = VerifyTokenRequest(token)
             val response = api.verifyToken(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val userData = response.body()!!.data!!
-                Log.d(TAG, "✅ 토큰 검증 성공")
+                Log.d(TAG, "✅ 토큰 검증 성공: ${userData.email}")
                 Result.success(userData)
             } else {
-                Log.e(TAG, "❌ 토큰 검증 실패")
+                Log.e(TAG, "❌ 토큰 검증 실패 (${response.code()})")
                 Result.failure(Exception("Invalid token"))
             }
         } catch (e: Exception) {
@@ -224,6 +221,9 @@ class AuthRepository(context: Context) {
     fun logout() {
         Log.d(TAG, "🚪 로그아웃 시작")
 
+        val tokenBefore = getToken()
+        Log.d(TAG, "로그아웃 전 토큰: ${tokenBefore?.take(30) ?: "없음"}")
+
         prefs.edit().apply {
             remove(KEY_AUTH_TOKEN)
             remove(KEY_USER_ID)
@@ -232,6 +232,8 @@ class AuthRepository(context: Context) {
             apply()
         }
 
+        val tokenAfter = getToken()
+        Log.d(TAG, "로그아웃 후 토큰: ${tokenAfter ?: "없음 (정상)"}")
         Log.d(TAG, "✅ 로그아웃 완료 - 모든 인증 정보 삭제됨")
     }
 
@@ -241,6 +243,14 @@ class AuthRepository(context: Context) {
     private fun saveToken(token: String) {
         prefs.edit().putString(KEY_AUTH_TOKEN, token).apply()
         Log.d(TAG, "💾 토큰 저장됨: ${token.take(30)}...")
+
+        // 저장 확인
+        val saved = prefs.getString(KEY_AUTH_TOKEN, null)
+        if (saved == token) {
+            Log.d(TAG, "✅ 토큰 저장 확인 완료")
+        } else {
+            Log.e(TAG, "❌ 토큰 저장 실패!")
+        }
     }
 
     /**
@@ -261,7 +271,7 @@ class AuthRepository(context: Context) {
     fun getToken(): String? {
         val token = prefs.getString(KEY_AUTH_TOKEN, null)
         if (token != null) {
-            Log.d(TAG, "📌 토큰 조회: ${token.take(30)}...")
+            Log.d(TAG, "📌 토큰 조회 성공: ${token.take(30)}...")
         } else {
             Log.w(TAG, "⚠️ 저장된 토큰 없음")
         }
@@ -272,14 +282,18 @@ class AuthRepository(context: Context) {
      * 사용자 ID 가져오기
      */
     fun getUserId(): String? {
-        return prefs.getString(KEY_USER_ID, null)
+        val userId = prefs.getString(KEY_USER_ID, null)
+        Log.d(TAG, "📌 사용자 ID: ${userId ?: "없음"}")
+        return userId
     }
 
     /**
      * 사용자 이메일 가져오기
      */
     fun getUserEmail(): String? {
-        return prefs.getString(KEY_USER_EMAIL, null)
+        val email = prefs.getString(KEY_USER_EMAIL, null)
+        Log.d(TAG, "📌 사용자 이메일: ${email ?: "없음"}")
+        return email
     }
 
     /**

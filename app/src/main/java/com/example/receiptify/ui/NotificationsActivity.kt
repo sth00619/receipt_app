@@ -1,28 +1,27 @@
 package com.example.receiptify.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.receiptify.R
 import com.example.receiptify.adapter.NotificationAdapter
 import com.example.receiptify.api.RetrofitClient
 import com.example.receiptify.api.models.NotificationItem
 import com.example.receiptify.databinding.ActivityNotificationsBinding
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 class NotificationsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNotificationsBinding
     private lateinit var notificationAdapter: NotificationAdapter
 
-    private val notifications = mutableListOf<NotificationItem>()
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)
+    private var notifications = mutableListOf<NotificationItem>()
+    private var unreadCount = 0
 
     companion object {
         private const val TAG = "NotificationsActivity"
@@ -33,16 +32,29 @@ class NotificationsActivity : AppCompatActivity() {
         binding = ActivityNotificationsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupUI()
+        // JWT 토큰 확인
+        val authRepository = com.example.receiptify.repository.AuthRepository(this)
+        val token = authRepository.getToken()
+        Log.d(TAG, "🔍 현재 저장된 JWT 토큰: ${token?.take(30) ?: "없음"}")
+
+        if (token == null) {
+            Log.e(TAG, "❌ JWT 토큰이 없습니다! 로그인이 필요합니다.")
+            Toast.makeText(this, "로그인이 필요합니다", Toast.LENGTH_SHORT).show()
+        }
+
+        setupToolbar()
         setupRecyclerView()
-        loadNotifications()
         setupClickListeners()
+        loadNotifications()
     }
 
-    private fun setupUI() {
+    private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            title = "알림"
+        }
 
         binding.toolbar.setNavigationOnClickListener {
             finish()
@@ -51,168 +63,276 @@ class NotificationsActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         notificationAdapter = NotificationAdapter(
-            notifications = notifications,
             onItemClick = { notification ->
-                markAsRead(notification)
+                showNotificationDetail(notification)
             },
             onDeleteClick = { notification ->
-                deleteNotification(notification)
+                showDeleteConfirmDialog(notification)
             }
         )
 
         binding.rvNotifications.apply {
-            layoutManager = LinearLayoutManager(this@NotificationsActivity)
             adapter = notificationAdapter
+            layoutManager = LinearLayoutManager(this@NotificationsActivity)
         }
     }
 
     private fun setupClickListeners() {
-        // 모두 읽음 처리
+        // 재분석 버튼
+        binding.btnAnalyze.setOnClickListener {
+            analyzeSpending()
+        }
+
+        // 모두 읽음 버튼
         binding.btnMarkAllRead.setOnClickListener {
-            markAllAsRead()
+            if (unreadCount > 0) {
+                markAllAsRead()
+            } else {
+                Toast.makeText(this, "읽지 않은 알림이 없습니다", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    /**
-     * 알림 목록 로드
-     */
     private fun loadNotifications() {
         lifecycleScope.launch {
             try {
-                binding.progressBar.visibility = View.VISIBLE
-                Log.d(TAG, "📥 알림 로드 시작")
+                Log.d(TAG, "📬 알림 목록 조회 중...")
 
-                val response = RetrofitClient.api.getNotifications(limit = 100)
+                val response = RetrofitClient.api.getNotifications()
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val data = response.body()?.data!!
+                if (response.isSuccessful) {
+                    val responseData = response.body()?.data
+                    if (responseData != null) {
+                        notifications = responseData.notifications.toMutableList()
+                        unreadCount = responseData.unreadCount
 
-                    Log.d(TAG, "✅ 알림 ${data.notifications.size}개 로드, 읽지 않음: ${data.unreadCount}개")
+                        Log.d(TAG, "✅ 알림 ${notifications.size}개 로드 완료 (읽지 않음: $unreadCount)")
 
-                    notifications.clear()
-                    notifications.addAll(data.notifications)
-                    notificationAdapter.notifyDataSetChanged()
-
-                    // 읽지 않은 알림 배지
-                    if (data.unreadCount > 0) {
-                        binding.tvUnreadCount.text = "${data.unreadCount}개의 새 알림"
-                        binding.tvUnreadCount.visibility = View.VISIBLE
+                        notificationAdapter.submitList(notifications)
+                        updateEmptyState()
                     } else {
-                        binding.tvUnreadCount.visibility = View.GONE
+                        Log.e(TAG, "❌ Response data is null")
+                        notifications = mutableListOf()
+                        notificationAdapter.submitList(emptyList())
+                        updateEmptyState()
                     }
-
-                    // 빈 상태 표시
-                    if (notifications.isEmpty()) {
-                        binding.tvEmptyState.visibility = View.VISIBLE
-                        binding.rvNotifications.visibility = View.GONE
-                    } else {
-                        binding.tvEmptyState.visibility = View.GONE
-                        binding.rvNotifications.visibility = View.VISIBLE
-                    }
-
                 } else {
-                    val errorMsg = response.body()?.message ?: "알 수 없는 오류"
-                    Log.e(TAG, "❌ 알림 로드 실패: $errorMsg")
-                    Toast.makeText(this@NotificationsActivity, "로드 실패: $errorMsg", Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "❌ 알림 조회 실패: ${response.code()}")
+                    notifications = mutableListOf()
+                    notificationAdapter.submitList(emptyList())
+                    updateEmptyState()
                 }
-
             } catch (e: Exception) {
-                Log.e(TAG, "❌ 알림 로드 오류", e)
-                Toast.makeText(this@NotificationsActivity, "오류: ${e.message}", Toast.LENGTH_SHORT).show()
-            } finally {
-                binding.progressBar.visibility = View.GONE
+                Log.e(TAG, "❌ 알림 조회 중 예외 발생", e)
+                notifications = mutableListOf()
+                notificationAdapter.submitList(emptyList())
+                updateEmptyState()
             }
         }
     }
 
-    /**
-     * 알림 읽음 처리
-     */
-    private fun markAsRead(notification: NotificationItem) {
-        if (notification.isRead) return
-
+    private fun markAsRead(notificationId: String) {
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.api.markNotificationAsRead(notification.id)
+                val response = RetrofitClient.api.markNotificationAsRead(notificationId)
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Log.d(TAG, "✅ 알림 읽음 처리: ${notification.id}")
-
-                    // 목록 업데이트
-                    val index = notifications.indexOfFirst { it.id == notification.id }
+                if (response.isSuccessful) {
+                    val index = notifications.indexOfFirst { it._id == notificationId }
                     if (index != -1) {
-                        notifications[index] = response.body()?.data!!
-                        notificationAdapter.notifyItemChanged(index)
+                        notifications[index] = notifications[index].copy(isRead = true)
+                        notificationAdapter.submitList(notifications.toList())
+
+                        if (unreadCount > 0) {
+                            unreadCount--
+                        }
                     }
 
-                    // 상세 내용 표시
-                    showNotificationDetail(notification)
+                    Log.d(TAG, "✅ 알림 읽음 처리 완료")
+                } else {
+                    Log.e(TAG, "❌ 알림 읽음 처리 실패: ${response.code()}")
                 }
-
             } catch (e: Exception) {
-                Log.e(TAG, "❌ 알림 읽음 처리 오류", e)
+                Log.e(TAG, "❌ 알림 읽음 처리 중 오류", e)
             }
         }
     }
 
-    /**
-     * 모든 알림 읽음 처리
-     */
     private fun markAllAsRead() {
         lifecycleScope.launch {
             try {
                 val response = RetrofitClient.api.markAllNotificationsAsRead()
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Log.d(TAG, "✅ 모든 알림 읽음 처리")
-                    Toast.makeText(this@NotificationsActivity, "모든 알림을 읽음 처리했습니다", Toast.LENGTH_SHORT).show()
+                if (response.isSuccessful) {
+                    notifications = notifications.map { it.copy(isRead = true) }.toMutableList()
+                    notificationAdapter.submitList(notifications)
+                    unreadCount = 0
 
-                    // 목록 새로고침
-                    loadNotifications()
+                    Toast.makeText(
+                        this@NotificationsActivity,
+                        "모든 알림을 읽음 처리했습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    Log.d(TAG, "✅ 모든 알림 읽음 처리 완료")
+                } else {
+                    Log.e(TAG, "❌ 모든 알림 읽음 처리 실패: ${response.code()}")
+                    Toast.makeText(
+                        this@NotificationsActivity,
+                        "알림 읽음 처리에 실패했습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-
             } catch (e: Exception) {
-                Log.e(TAG, "❌ 전체 읽음 처리 오류", e)
-                Toast.makeText(this@NotificationsActivity, "오류: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "❌ 모든 알림 읽음 처리 중 오류", e)
+                Toast.makeText(
+                    this@NotificationsActivity,
+                    "오류가 발생했습니다",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
-    /**
-     * 알림 삭제
-     */
-    private fun deleteNotification(notification: NotificationItem) {
+    private fun showDeleteConfirmDialog(notification: NotificationItem) {
+        AlertDialog.Builder(this)
+            .setTitle("알림 삭제")
+            .setMessage("이 알림을 삭제하시겠습니까?")
+            .setPositiveButton("삭제") { _, _ ->
+                deleteNotification(notification._id)
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun deleteNotification(notificationId: String) {
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.api.deleteNotification(notification.id)
+                val response = RetrofitClient.api.deleteNotification(notificationId)
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Log.d(TAG, "✅ 알림 삭제: ${notification.id}")
+                if (response.isSuccessful) {
+                    val removedNotification = notifications.find { it._id == notificationId }
+                    notifications.removeAll { it._id == notificationId }
+                    notificationAdapter.submitList(notifications.toList())
 
-                    val index = notifications.indexOf(notification)
-                    if (index != -1) {
-                        notifications.removeAt(index)
-                        notificationAdapter.notifyItemRemoved(index)
+                    if (removedNotification?.isRead == false && unreadCount > 0) {
+                        unreadCount--
                     }
 
-                    Toast.makeText(this@NotificationsActivity, "알림을 삭제했습니다", Toast.LENGTH_SHORT).show()
-                }
+                    updateEmptyState()
 
+                    Toast.makeText(
+                        this@NotificationsActivity,
+                        "알림이 삭제되었습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    Log.d(TAG, "✅ 알림 삭제 완료")
+                } else {
+                    Log.e(TAG, "❌ 알림 삭제 실패: ${response.code()}")
+                    Toast.makeText(
+                        this@NotificationsActivity,
+                        "알림 삭제에 실패했습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ 알림 삭제 오류", e)
-                Toast.makeText(this@NotificationsActivity, "삭제 실패", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "❌ 알림 삭제 중 오류", e)
+                Toast.makeText(
+                    this@NotificationsActivity,
+                    "오류가 발생했습니다",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
-    /**
-     * 알림 상세 내용 표시
-     */
     private fun showNotificationDetail(notification: NotificationItem) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        if (!notification.isRead) {
+            markAsRead(notification._id)
+        }
+
+        val dialogBuilder = AlertDialog.Builder(this)
             .setTitle(notification.title)
             .setMessage(notification.message)
-            .setPositiveButton("확인", null)
+            .setPositiveButton("확인") { dialog, _ ->
+                dialog.dismiss()
+            }
+
+        if (notification.metadata?.chatbotSuggested == true) {
+            dialogBuilder.setNeutralButton("💬 챗봇 조언") { _, _ ->
+                openChatbotWithAdvice(notification)
+            }
+        }
+
+        dialogBuilder.setNegativeButton("삭제") { _, _ ->
+            deleteNotification(notification._id)
+        }
             .show()
+    }
+
+    private fun openChatbotWithAdvice(notification: NotificationItem) {
+        val intent = Intent(this, ChatbotActivity::class.java).apply {
+            putExtra("notification_id", notification._id)
+            putExtra("notification_title", notification.title)
+            putExtra("notification_category", notification.category)
+        }
+        startActivity(intent)
+    }
+
+    private fun analyzeSpending() {
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "🔍 소비 패턴 분석 중...")
+
+                val response = RetrofitClient.api.analyzeSpending()
+
+                if (response.isSuccessful) {
+                    val responseData = response.body()?.data
+                    if (responseData != null) {
+                        Toast.makeText(
+                            this@NotificationsActivity,
+                            "새로운 알림 ${responseData.newNotifications}개가 생성되었습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        Log.d(TAG, "✅ 분석 완료: ${responseData.message}")
+
+                        // 알림 목록 새로고침
+                        loadNotifications()
+                    } else {
+                        Log.e(TAG, "❌ Response data is null")
+                        Toast.makeText(
+                            this@NotificationsActivity,
+                            "분석에 실패했습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    Log.e(TAG, "❌ 분석 실패: ${response.code()}")
+                    Toast.makeText(
+                        this@NotificationsActivity,
+                        "분석에 실패했습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 분석 중 오류", e)
+                Toast.makeText(
+                    this@NotificationsActivity,
+                    "오류가 발생했습니다",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun updateEmptyState() {
+        if (notifications.isEmpty()) {
+            binding.tvEmpty.visibility = View.VISIBLE
+            binding.rvNotifications.visibility = View.GONE
+        } else {
+            binding.tvEmpty.visibility = View.GONE
+            binding.rvNotifications.visibility = View.VISIBLE
+        }
     }
 }

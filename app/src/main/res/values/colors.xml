@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Primary Colors -->
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
     <color name="primary_purple">#6366F1</color>
     <color name="primary_purple_light">#818CF8</color>
     <color name="primary_purple_dark">#4F46E5</color>
@@ -28,6 +30,8 @@
     <color name="black">#000000</color>
     <color name="divider">#E5E7EB</color>
     <color name="divider_dark">#4B5563</color>
+    <color name="red">#F44336</color>
+    <color name="gray">#808080</color>
 
     <!-- Social Login Colors -->
     <color name="naver_green">#03C75A</color>

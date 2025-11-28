@@ -8,23 +8,13 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
+        android:background="?attr/colorSurface"
         app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="💬 소비 도우미"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-        </androidx.appcompat.widget.Toolbar>
+            android:layout_height="?attr/actionBarSize" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -38,9 +28,7 @@
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorSurface"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp"
+            android:padding="8dp"
             android:scrollbars="none">
 
             <LinearLayout
@@ -54,9 +42,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
-                    android:text="총 지출"
-                    android:textSize="12sp"
-                    app:cornerRadius="20dp" />
+                    android:text="💰 총 지출"
+                    android:textSize="14sp"
+                    app:strokeColor="@color/primary_purple" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnQuickFood"
@@ -64,9 +52,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
-                    android:text="식비 분석"
-                    android:textSize="12sp"
-                    app:cornerRadius="20dp" />
+                    android:text="🍚 식비 분석"
+                    android:textSize="14sp"
+                    app:strokeColor="@color/primary_purple" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnQuickTips"
@@ -74,74 +62,86 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
-                    android:text="절약 팁"
-                    android:textSize="12sp"
-                    app:cornerRadius="20dp" />
+                    android:text="💡 절약 팁"
+                    android:textSize="14sp"
+                    app:strokeColor="@color/primary_purple" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnQuickAnalysis"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="소비 분석"
-                    android:textSize="12sp"
-                    app:cornerRadius="20dp" />
+                    android:text="📊 소비 분석"
+                    android:textSize="14sp"
+                    app:strokeColor="@color/primary_purple" />
 
             </LinearLayout>
 
         </HorizontalScrollView>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="?attr/colorOutline" />
-
-        <!-- 채팅 메시지 리스트 -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvMessages"
+        <!-- 채팅 메시지 목록 -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:padding="16dp" />
+            android:layout_weight="1">
 
-        <!-- 로딩 인디케이터 -->
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone" />
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="16dp" />
+
+            <!-- 로딩 -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+        </FrameLayout>
 
         <!-- 메시지 입력 영역 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
-            android:elevation="4dp"
+            android:elevation="8dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="8dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etMessage"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@drawable/bg_message_input"
-                android:hint="메시지를 입력하세요..."
-                android:imeOptions="actionSend"
-                android:inputType="textMultiLine"
-                android:maxLines="4"
-                android:padding="12dp"
-                android:textSize="14sp" />
+                app:boxBackgroundMode="outline"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeColor="@color/primary_purple">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="메시지를 입력하세요..."
+                    android:imeOptions="actionSend"
+                    android:inputType="textMultiLine"
+                    android:maxLines="3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/btnSend"
+                android:id="@+id/fabSend"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
                 android:layout_marginStart="8dp"
+                android:contentDescription="전송"
                 android:src="@drawable/ic_back"
+                app:backgroundTint="@color/primary_purple"
                 app:fabSize="mini"
                 app:tint="@color/white" />
 

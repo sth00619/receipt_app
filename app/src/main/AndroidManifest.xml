@@ -149,6 +149,16 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".ui.NotificationsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Receiptify" />
+
+        <activity
+            android:name=".ui.ChatbotActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

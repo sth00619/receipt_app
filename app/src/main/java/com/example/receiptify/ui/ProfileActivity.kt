@@ -8,10 +8,12 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import com.example.receiptify.R
 import com.example.receiptify.databinding.ActivityProfileBinding
 import com.example.receiptify.repository.AuthRepository
+import com.example.receiptify.utils.PreferenceManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -27,6 +29,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var binding: ActivityProfileBinding
     private lateinit var authRepository: AuthRepository
     private lateinit var prefs: SharedPreferences
+    private lateinit var preferenceManager: PreferenceManager
     private var googleSignInClient: GoogleSignInClient? = null
 
     companion object {
@@ -43,10 +46,12 @@ class ProfileActivity : AppCompatActivity() {
 
         authRepository = AuthRepository(this)
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        preferenceManager = PreferenceManager(this)
 
         setupGoogleSignIn()
         setupToolbar()
         loadUserProfile()
+        loadSettings()  // ✅ 모든 설정 로드
         setupClickListeners()
         setupBottomNavigation()
     }
@@ -68,8 +73,23 @@ class ProfileActivity : AppCompatActivity() {
     private fun loadUserProfile() {
         val email = prefs.getString("user_email", "사용자") ?: "사용자"
 
-        binding.tvUserName.text = email?.split("@")?.get(0) ?: "사용자"
+        binding.tvUserName.text = email.split("@").getOrNull(0) ?: "사용자"
         binding.tvEmail.text = email
+    }
+
+    /**
+     * ✅ 현재 설정 상태를 UI에 반영
+     */
+    private fun loadSettings() {
+        // 다크모드 상태
+        val isDarkMode = preferenceManager.isDarkMode()
+        binding.switchDarkMode.isChecked = isDarkMode
+        Log.d(TAG, "현재 다크모드 상태: $isDarkMode")
+
+        // 알림 상태
+        val isNotificationEnabled = preferenceManager.isNotificationEnabled()
+        binding.switchNotification.isChecked = isNotificationEnabled
+        Log.d(TAG, "현재 알림 상태: $isNotificationEnabled")
     }
 
     private fun setupClickListeners() {
@@ -78,14 +98,39 @@ class ProfileActivity : AppCompatActivity() {
             showLogoutConfirmDialog()
         }
 
-        // 알림 설정
+        // ✅ 알림 설정
         binding.switchNotification.setOnCheckedChangeListener { _, isChecked ->
-            Toast.makeText(this, "알림: ${if (isChecked) "켜짐" else "꺼짐"}", Toast.LENGTH_SHORT).show()
+            preferenceManager.setNotificationEnabled(isChecked)
+            Toast.makeText(
+                this,
+                "알림: ${if (isChecked) "켜짐" else "꺼짐"}",
+                Toast.LENGTH_SHORT
+            ).show()
+            Log.d(TAG, "알림 설정 변경: $isChecked")
         }
 
-        // 다크모드
+        // ✅ 다크모드 토글
         binding.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
-            Toast.makeText(this, "다크모드: ${if (isChecked) "켜짐" else "꺼짐"}", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "다크모드 스위치 변경: $isChecked")
+
+            // PreferenceManager에 저장
+            preferenceManager.setDarkMode(isChecked)
+
+            // 즉시 다크모드 적용
+            if (isChecked) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            } else {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+
+            Toast.makeText(
+                this,
+                "다크모드: ${if (isChecked) "켜짐" else "꺼짐"}",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            // 액티비티 재시작하여 테마 적용
+            recreate()
         }
 
         // 비밀번호 변경
@@ -93,7 +138,7 @@ class ProfileActivity : AppCompatActivity() {
             Toast.makeText(this, "비밀번호 변경 (준비중)", Toast.LENGTH_SHORT).show()
         }
 
-        // 알림 카드
+        // ✅ 알림 카드 클릭
         binding.cvNotifications.setOnClickListener {
             val intent = Intent(this@ProfileActivity, NotificationsActivity::class.java)
             startActivity(intent)

@@ -49,9 +49,7 @@ class PreferenceManager(context: Context) {
     }
 
     fun isNotificationEnabled(): Boolean = prefs.getBoolean("notification_enabled", true)
-
     fun setNotificationEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("notification_enabled", enabled).apply()
     }
-
 }
