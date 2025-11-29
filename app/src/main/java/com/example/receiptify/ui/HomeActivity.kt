@@ -306,6 +306,11 @@ class HomeActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.all_transactions_coming_soon, Toast.LENGTH_SHORT).show()
         }
 
+        binding.btnChatbot.setOnClickListener {
+            val intent = Intent(this@HomeActivity, ChatbotActivity::class.java)
+            startActivity(intent)
+        }
+
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> true

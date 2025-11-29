@@ -77,33 +77,36 @@ interface ReceiptApiService {
         @Body request: UpdateSettingRequest
     ): Response<ApiResponse<UserResponse>>
 
-    // 알림 목록 조회
+    // 알림 관련
     @GET("notifications")
-    suspend fun getNotifications(
-        @Query("limit") limit: Int = 50,
-        @Query("unreadOnly") unreadOnly: Boolean = false
-    ): Response<ApiResponse<NotificationsResponse>>
+    suspend fun getNotifications(): Response<ApiResponse<NotificationsResponse>>
 
-    // 알림 읽음 처리
-    @PUT("notifications/{id}/read")
+    @POST("notifications/{notificationId}/read")
     suspend fun markNotificationAsRead(
-        @Path("id") id: String
-    ): Response<ApiResponse<NotificationItem>>
+        @Path("notificationId") notificationId: String
+    ): Response<ApiResponse<Any>>
 
-    // 모든 알림 읽음 처리
-    @PUT("notifications/read-all")
-    suspend fun markAllNotificationsAsRead(): Response<ApiResponse<Unit>>
+    @POST("notifications/read-all")
+    suspend fun markAllNotificationsAsRead(): Response<ApiResponse<Any>>
 
-    // 알림 삭제
-    @DELETE("notifications/{id}")
+    @DELETE("notifications/{notificationId}")
     suspend fun deleteNotification(
-        @Path("id") id: String
-    ): Response<ApiResponse<Unit>>
+        @Path("notificationId") notificationId: String
+    ): Response<ApiResponse<Any>>
+
+    @POST("notifications/analyze")
+    suspend fun analyzeSpending(): Response<ApiResponse<AnalyzeResponse>>
 
     // 챗봇 메시지 전송
     @POST("chatbot/message")
     suspend fun sendChatbotMessage(
         @Body request: Map<String, String>
+    ): Response<ApiResponse<Map<String, Any>>>
+
+    // ✅ 알림 기반 조언 API 추가
+    @POST("chatbot/advice/{notificationId}")
+    suspend fun getChatbotAdvice(
+        @Path("notificationId") notificationId: String
     ): Response<ApiResponse<Map<String, Any>>>
 
     // ============ 영수증 관련 API ============

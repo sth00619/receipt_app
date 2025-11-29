@@ -180,48 +180,42 @@ data class UserStats(
     val totalSpending: Double = 0.0
 )
 
-// 알림 모델
+// 알림 관련 모델
 data class NotificationItem(
-    @SerializedName("_id")
-    val id: String,
-
-    @SerializedName("userId")
+    val _id: String,
     val userId: String,
-
-    @SerializedName("type")
     val type: String,  // budget_warning, spending_alert, category_alert, tip, monthly_summary
-
-    @SerializedName("title")
     val title: String,
-
-    @SerializedName("message")
     val message: String,
-
-    @SerializedName("category")
-    val category: String?,
-
-    @SerializedName("amount")
-    val amount: Double,
-
-    @SerializedName("isRead")
-    val isRead: Boolean,
-
-    @SerializedName("priority")
-    val priority: String,  // low, medium, high
-
-    @SerializedName("metadata")
-    val metadata: Map<String, Any>?,
-
-    @SerializedName("createdAt")
-    val createdAt: String
+    val category: String? = null,
+    val amount: Double? = null,
+    val isRead: Boolean = false,
+    val priority: String = "medium",  // low, medium, high
+    val metadata: NotificationMetadata? = null,
+    val createdAt: String,
+    val updatedAt: String? = null
 )
 
 data class NotificationsResponse(
-    @SerializedName("notifications")
     val notifications: List<NotificationItem>,
-
-    @SerializedName("unreadCount")
     val unreadCount: Int
+)
+
+data class NotificationMetadata(
+    val triggerType: String? = null,
+    val limit: Double? = null,
+    val overAmount: Double? = null,
+    val chatbotSuggested: Boolean = false
+)
+
+data class AnalyzeResponse(
+    val newNotifications: Int,
+    val message: String,
+
+    val alerts: List<NotificationItem>,
+    val tips: List<NotificationItem>,
+    val currentMonthStats: Map<String, CategoryStat>,
+    val lastMonthStats: Map<String, CategoryStat>
 )
 
 // ==================== 영수증 관련 모델 ====================

@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Receipt = require('../models/Receipt');
+const SpendingAnalyzer = require('../services/SpendingAnalyzer');
 
 // 내 통계 조회
 router.get('/stats', async (req, res) => {
@@ -158,35 +159,52 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 영수증 생성
+/**
+ * POST /api/receipts
+ * 영수증 생성
+ */
 router.post('/', async (req, res) => {
   try {
+    const userId = req.user.userId;
     const receiptData = {
       ...req.body,
-      userId: req.user.userId
+      userId: userId
     };
 
-    console.log('📝 영수증 생성 요청:', receiptData.storeName);
+    console.log('📝 영수증 생성 요청:', receiptData);
 
     const receipt = new Receipt(receiptData);
     await receipt.save();
 
-    console.log(`✅ 영수증 생성 완료: ${receipt._id}`);
+    console.log('✅ 영수증 저장 완료:', receipt._id);
+
+    // ✅✅✅ 실시간 소비 분석 및 알림 생성
+    try {
+      const analysis = await SpendingAnalyzer.analyzeRealtimeSpending(userId, receipt);
+
+      if (analysis.alerts.length > 0) {
+        console.log(`🔔 ${analysis.alerts.length}개 실시간 알림 생성됨`);
+      }
+    } catch (analysisError) {
+      console.error('⚠️ 실시간 분석 실패 (영수증은 저장됨):', analysisError);
+      // 분석 실패해도 영수증 저장은 성공
+    }
 
     res.status(201).json({
       success: true,
-      data: receipt,
-      message: 'Receipt created successfully'
+      message: '영수증이 생성되었습니다',
+      data: receipt
     });
+
   } catch (error) {
-    console.error('❌ 영수증 생성 오류:', error);
-    res.status(400).json({
+    console.error('❌ 영수증 생성 실패:', error);
+    res.status(500).json({
       success: false,
-      message: 'Error creating receipt',
+      message: '영수증 생성에 실패했습니다',
       error: error.message
     });
   }
-});
+})
 
 // 특정 영수증 조회
 router.get('/:id', async (req, res) => {
@@ -248,6 +266,53 @@ router.put('/:id', async (req, res) => {
     res.status(400).json({
       success: false,
       message: 'Error updating receipt',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/receipts
+ * 영수증 생성
+ */
+router.post('/', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const receiptData = {
+      ...req.body,
+      userId: userId
+    };
+
+    console.log('📝 영수증 생성 요청:', receiptData);
+
+    const receipt = new Receipt(receiptData);
+    await receipt.save();
+
+    console.log('✅ 영수증 저장 완료:', receipt._id);
+
+    // ✅✅✅ 실시간 소비 분석 및 알림 생성
+    try {
+      const analysis = await SpendingAnalyzer.analyzeRealtimeSpending(userId, receipt);
+
+      if (analysis.alerts.length > 0) {
+        console.log(`🔔 ${analysis.alerts.length}개 실시간 알림 생성됨`);
+      }
+    } catch (analysisError) {
+      console.error('⚠️ 실시간 분석 실패 (영수증은 저장됨):', analysisError);
+      // 분석 실패해도 영수증 저장은 성공
+    }
+
+    res.status(201).json({
+      success: true,
+      message: '영수증이 생성되었습니다',
+      data: receipt
+    });
+
+  } catch (error) {
+    console.error('❌ 영수증 생성 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '영수증 생성에 실패했습니다',
       error: error.message
     });
   }

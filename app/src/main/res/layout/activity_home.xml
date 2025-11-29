@@ -17,13 +17,36 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@android:color/transparent">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- ✅ Toolbar 내용 수정 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/home_title"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- 타이틀 -->
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/home_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <!-- ✅ 챗봇 버튼 추가 -->
+                <ImageButton
+                    android:id="@+id/btnChatbot"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="챗봇"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_chat"
+                    app:tint="@color/primary_purple" />
+
+            </LinearLayout>
 
         </androidx.appcompat.widget.Toolbar>
 
@@ -344,6 +367,8 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <!-- ✅ FAB 삭제됨 (챗봇 버튼이 Toolbar로 이동) -->
 
     <!-- Bottom Navigation -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
