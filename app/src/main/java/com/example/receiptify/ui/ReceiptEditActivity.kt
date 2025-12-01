@@ -417,15 +417,8 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
             .show()
     }
 
-    /**
-     * ✂ 편집 화면에서 삭제: 아직 서버에 저장 안 된 경우
-     *  - 입력한 값들/품목을 모두 날리고 화면을 닫는다.
-     *  - 나중에 receiptId가 있을 때는 여기서 서버 삭제까지 확장 가능.
-     */
-    private fun deleteCurrentReceiptInEdit() {
-        // TODO: 나중에 receiptId != null 이면 ReceiptRepository().deleteReceipt(receiptId!!) 호출해서
-        //       진짜 서버에서 삭제하는 로직을 넣어도 됨.
 
+    private fun deleteCurrentReceiptInEdit() {
         Toast.makeText(this, "편집 중이던 영수증을 삭제했습니다.", Toast.LENGTH_SHORT).show()
         finish()  // 실제 삭제되는 함수: 화면을 저장하지 말고 닫아라.
     }
