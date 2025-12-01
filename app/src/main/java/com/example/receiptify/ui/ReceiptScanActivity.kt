@@ -329,6 +329,7 @@ class ReceiptScanActivity : AppCompatActivity() {
         binding.btnSaveAndEdit.visibility = View.VISIBLE
 
         binding.btnSaveAndEdit.setOnClickListener {
+            // 영수증 찍고 난 후 수정하고 싶을 때
             val intent = Intent(this, ReceiptEditActivity::class.java)
 
             // ✅ 이미지 URI 전달

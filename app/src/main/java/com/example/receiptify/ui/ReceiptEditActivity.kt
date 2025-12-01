@@ -11,7 +11,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
-import com.example.receiptify.R
 import com.example.receiptify.adapter.ReceiptItemEditAdapter
 import com.example.receiptify.api.RetrofitClient
 import com.example.receiptify.api.models.CreateReceiptRequest
@@ -24,7 +23,15 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ReceiptEditActivity : AppCompatActivity() {
+// Sensor
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import androidx.appcompat.app.AlertDialog
+import kotlin.math.abs
+
+class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var binding: ActivityReceiptEditBinding
     private lateinit var itemAdapter: ReceiptItemEditAdapter
@@ -42,12 +49,36 @@ class ReceiptEditActivity : AppCompatActivity() {
         private const val TAG = "ReceiptEditActivity"
     }
 
+    // ✅ 흔들기 삭제 관련 변수들
+    private lateinit var sensorManager: SensorManager
+    private var accelerometer: Sensor? = null
+
+    // 삭제 다이얼로그가 여러 번 뜨지 않게 막기
+    private var isDeleteDialogShowing = false
+
+    // 처음에 가만히 있을 때의 기준 값 (baseline)
+    private var lastTime: Long = 0     // 마지막으로 흔든 시간
+    private var lastX: Float = 0f      // 마지막 X값
+    private var lastY: Float = 0f      // 마지막 Y값
+    private var lastZ: Float = 0f      // 마지막 Z값
+
+    private var shakeCount: Int = 0    // 흔든 횟수 카운트 (하나, 둘, 셋!) null
+
+    // (나중에 진짜 서버 영수증 삭제할 때 쓸 ID, 지금은 null일 수 있음)
+    private var receiptId: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityReceiptEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         preferenceManager = PreferenceManager(this)
+
+        // 인텐트에서 receiptId 받아오기
+        receiptId = intent.getStringExtra("receiptId")
+
+        // 흔들기 센서 초기화
+        initShakeSensor()
 
         setupUI()
         setupRecyclerView()
@@ -301,4 +332,102 @@ class ReceiptEditActivity : AppCompatActivity() {
             }
         }
     }
+    // 가속도 센서를 쓸 거다.
+    private fun initShakeSensor() {
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    }
+
+    // 흔들리는지 감시하는 로직
+    override fun onResume() {
+        super.onResume()
+        accelerometer?.let { sensor ->
+            sensorManager.registerListener(
+                this,
+                sensor,
+                SensorManager.SENSOR_DELAY_UI
+            )
+        }
+    }
+    // 화면이 사라졌을 때 센서 끄기
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+    }
+    // Sensor 감지하는 로직
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type != Sensor.TYPE_ACCELEROMETER) return
+
+        val currentTime = System.currentTimeMillis()
+        // 0.1초마다 한 번씩만 검사
+        if ((currentTime - lastTime) > 100) {
+
+            // 가속도(event안에 센서 값(values)이 들어있음)
+            val x = event.values[0]   // 좌우
+            val y = event.values[1]   // 위아래
+            val z = event.values[2]   // 앞뒤
+
+            // [핵심 로직]
+            // "지금 값"에서 "아까 값"을 뺐을 때 차이가 크면 흔든 거야!
+            // abs사용: -5만큼 움직여도 5를 움직인 것이라서
+            val speed = abs(x - lastX) + abs(y - lastY) + abs(z - lastZ)
+
+            // 속도가 10을 넘으면 한 번 흔든 것
+            if (speed > 10) {
+                shakeCount++ // 카운트 +1
+            }
+
+            // [성공 조건]
+            // 연속으로 3번 이상 흔들었으면 삭제 다이얼로그 띄우기
+            if (shakeCount >= 10) {
+                if (!isDeleteDialogShowing) {
+                    showDeleteDialog()
+                }
+                shakeCount = 0 // 다이얼로그 띄웠으니 카운트 초기화
+            }
+
+            // 지금 위치를 기억해둠 (다음 0.1초 뒤에 비교하려고)
+            lastX = x
+            lastY = y
+            lastZ = z
+            lastTime = currentTime
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        // 여기서는 사용 안 함
+    }
+    private fun showDeleteDialog() {
+        isDeleteDialogShowing = true
+
+        AlertDialog.Builder(this)
+            .setTitle("영수증 삭제")
+            .setMessage("휴대폰을 흔들어서 이 영수증을 삭제(편집 내용 버리기)할까요?")
+            .setPositiveButton("삭제") { _, _ ->
+                deleteCurrentReceiptInEdit()
+            }
+            .setNegativeButton("취소") { dialog, _ ->
+                dialog.dismiss()
+                isDeleteDialogShowing = false
+            }
+            .setOnDismissListener {
+                // 다이얼로그가 닫힐 때 플래그 초기화
+                isDeleteDialogShowing = false
+            }
+            .show()
+    }
+
+    /**
+     * ✂ 편집 화면에서 삭제: 아직 서버에 저장 안 된 경우
+     *  - 입력한 값들/품목을 모두 날리고 화면을 닫는다.
+     *  - 나중에 receiptId가 있을 때는 여기서 서버 삭제까지 확장 가능.
+     */
+    private fun deleteCurrentReceiptInEdit() {
+        // TODO: 나중에 receiptId != null 이면 ReceiptRepository().deleteReceipt(receiptId!!) 호출해서
+        //       진짜 서버에서 삭제하는 로직을 넣어도 됨.
+
+        Toast.makeText(this, "편집 중이던 영수증을 삭제했습니다.", Toast.LENGTH_SHORT).show()
+        finish()  // 실제 삭제되는 함수: 화면을 저장하지 말고 닫아라.
+    }
+
 }
