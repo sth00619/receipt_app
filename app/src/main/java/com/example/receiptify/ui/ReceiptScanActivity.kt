@@ -301,7 +301,7 @@ class ReceiptScanActivity : AppCompatActivity() {
             appendLine("═══════════════════════════════")
 
             val categoryName = when (data.suggestedCategory) {
-                "food" -> "🍔 식비"
+                "food", "cafe", "convenience" -> "🍔 식비"
                 "transport" -> "🚗 교통"
                 "shopping" -> "🛍️ 쇼핑"
                 else -> "📌 기타"
