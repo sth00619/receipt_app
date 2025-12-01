@@ -1,29 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
-    <!-- 카메라 및 갤러리에서 이미지 선택 기능 -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" /> <!-- 카메라 및 갤러리에서 이미지 선택 기능 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-
-    <!-- ====================================== -->
+        android:maxSdkVersion="32" /> <!-- ====================================== -->
     <!-- 🔑 Chrome 브라우저 쿼리 (Android 11+) -->
     <!-- ====================================== -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
+
             <category android:name="android.intent.category.BROWSABLE" />
+
             <data android:scheme="https" />
         </intent>
-
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
@@ -35,22 +34,34 @@
     <application
         android:name=".ReceiptifyApplication"
         android:allowBackup="true"
-        android:largeHeap="true"
-        android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Receiptify"
+        android:usesCleartextTraffic="true"
         tools:targetApi="31">
-
-<!--        <meta-data-->
-<!--            android:name="com.kakao.sdk.AppKey"-->
-<!--            android:value="YOUR_KAKAO_APP_KEY" />-->
-
+        <activity
+            android:name=".adapter.ReceiptListAdapter"
+            android:exported="false"
+            android:label="@string/title_activity_receipt_list_adapter"
+            android:theme="@style/Theme.Receiptify" />
+        <activity
+            android:name=".ui.ReceiptDetailActivity"
+            android:exported="false"
+            android:label="@string/title_activity_receipt_detail"
+            android:theme="@style/Theme.Receiptify" />
+        <activity
+            android:name=".ui.CategoryDetailActivity"
+            android:exported="false"
+            android:label="@string/title_activity_category_detail"
+            android:theme="@style/Theme.Receiptify" /> <!-- <meta-data -->
+        <!-- android:name="com.kakao.sdk.AppKey" -->
+        <!-- android:value="YOUR_KAKAO_APP_KEY" /> -->
         <!-- FileProvider for camera/gallery -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -60,18 +71,14 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
-        </provider>
-
-        <!-- ====================================== -->
+        </provider> <!-- ====================================== -->
         <!-- 🔑 네이버 OAuth Activity (필수!) -->
         <!-- ====================================== -->
         <activity
             android:name="com.navercorp.nid.oauth.NidOAuthLoginActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            tools:node="replace" />
-
-        <!-- Login Activity (Launcher) -->
+            tools:node="replace" /> <!-- Login Activity (Launcher) -->
         <activity
             android:name=".ui.LoginActivity"
             android:exported="true"
@@ -82,83 +89,72 @@
             <!-- Main Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
             <!-- 🔑 네이버 OAuth Callback (패키지명 기반) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
-                    android:scheme="com.example.receiptify"
-                    android:host="oauth" />
+                    android:host="oauth"
+                    android:scheme="com.example.receiptify" />
             </intent-filter>
 
             <!-- 🔑 네이버 OAuth Callback (커스텀 스킴) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="naverlogin"
-                    android:host="oauth" />
-            </intent-filter>
-        </activity>
 
-        <!-- Sign Up Activity -->
+                <data
+                    android:host="oauth"
+                    android:scheme="naverlogin" />
+            </intent-filter>
+        </activity> <!-- Sign Up Activity -->
         <activity
             android:name=".ui.SignUpActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize" />
-
-        <!-- Home Activity -->
+            android:windowSoftInputMode="adjustResize" /> <!-- Home Activity -->
         <activity
             android:name=".ui.HomeActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- Profile Activity -->
+            android:screenOrientation="portrait" /> <!-- Profile Activity -->
         <activity
             android:name=".ui.ProfileActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- Receipt Scan Activity (OCR 기능) -->
+            android:screenOrientation="portrait" /> <!-- Receipt Scan Activity (OCR 기능) -->
         <activity
             android:name=".ui.ReceiptScanActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- Ocr Test Activity (개발용) -->
+            android:screenOrientation="portrait" /> <!-- Ocr Test Activity (개발용) -->
         <activity
             android:name=".ui.OcrTestActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-
         <activity
             android:name=".ui.CategoriesActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- Receipt Edit Activity -->
+            android:screenOrientation="portrait" /> <!-- Receipt Edit Activity -->
         <activity
             android:name=".ui.ReceiptEditActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
-
         <activity
             android:name=".ui.NotificationsActivity"
             android:exported="false"
             android:theme="@style/Theme.Receiptify" />
-
         <activity
             android:name=".ui.ChatbotActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-
     </application>
 
 </manifest>

@@ -2,7 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
-    id("kotlin-kapt") // KAPT 플러그인은 유지
+    id("kotlin-kapt")
+    alias(libs.plugins.kotlin.compose) // KAPT 플러그인은 유지
 }
 
 android {
@@ -37,6 +38,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        compose = true
     }
 }
 
@@ -57,6 +59,17 @@ dependencies {
 
     // Naver OAuth
     implementation("com.navercorp.nid:oauth:5.9.1")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // 🔹 Room Database (중복 제거됨)
     val room_version = "2.6.1"
