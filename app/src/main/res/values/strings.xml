@@ -106,5 +106,8 @@
     <string name="logout_confirm_no">Cancel</string>
     <string name="notifications_enabled">Notifications enabled</string>
     <string name="notifications_disabled">Notifications disabled</string>
+    <string name="title_activity_category_detail">CategoryDetailActivity</string>
+    <string name="title_activity_receipt_detail">ReceiptDetailActivity</string>
+    <string name="title_activity_receipt_list_adapter">ReceiptListAdapter</string>
 
 </resources>

@@ -63,8 +63,13 @@ class CategoriesActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         categoryAdapter = CategoryAdapter { category ->
-            Toast.makeText(this, "${category.name} 상세 내역", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, CategoryDetailActivity::class.java).apply {
+                putExtra("category_code", category.code)     // food
+                putExtra("category_name", category.name)     // Food
+            }
+            startActivity(intent)
         }
+
 
         binding.rvCategories.apply {
             layoutManager = LinearLayoutManager(this@CategoriesActivity)

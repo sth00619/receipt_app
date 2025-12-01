@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@color/background_light">
+
+    <!-- 영수증 이미지 -->
+    <ImageView
+        android:id="@+id/imageReceipt"
+        android:layout_width="match_parent"
+        android:layout_height="260dp"
+        android:scaleType="centerCrop"
+        android:background="@color/white"
+        android:elevation="4dp" />
+
+    <!-- OCR 텍스트/매장명/날짜 등을 넣을 영역 (원하면 확장 가능) -->
+    <TextView
+        android:id="@+id/tvStoreName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="상호명"
+        android:textSize="18sp"
+        android:layout_marginTop="20dp"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        android:id="@+id/tvTotalAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₩ 0"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/primary_purple" />
+
+    <!-- 삭제 버튼 -->
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="영수증 삭제"
+        android:layout_marginTop="32dp"
+        android:backgroundTint="@color/red"
+        android:textColor="@color/white" />
+
+</LinearLayout>
