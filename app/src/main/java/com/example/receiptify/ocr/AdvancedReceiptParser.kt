@@ -71,7 +71,7 @@ class AdvancedReceiptParser {
     }
 
     private fun extractDate(text: String): Date? {
-        val pattern = Regex("일시[:\\s]*(\\d{4})-(\\d{2})-(\\d{2})\\s+(\\d{2}):(\\d{2})")
+        val pattern = Regex("일시[:\\s]*(\\d{4})-(\\d{2})-(\\d{2})\\s*(\\d{2}):(\\d{2})")
         val match = pattern.find(text) ?: return null
 
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA)

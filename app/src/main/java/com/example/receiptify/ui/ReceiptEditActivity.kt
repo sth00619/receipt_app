@@ -163,7 +163,7 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
             // 카테고리
             val category = intent.getStringExtra("category") ?: "others"
             val categoryIndex = when (category) {
-                "food" -> 0
+                "food", "cafe", "convenience" -> 0
                 "transport" -> 1
                 "shopping" -> 2
                 "healthcare" -> 3
@@ -185,7 +185,7 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
                 itemsList.forEach { itemMap ->
                     val name = itemMap["name"] as? String ?: "품목"
                     val quantity = (itemMap["quantity"] as? Double)?.toInt() ?: 1
-                    val amount = (itemMap["amount"] as? Double)?.toInt() ?: 0
+                    val amount = ((itemMap["amount"] ?: itemMap["totalPrice"]) as? Double)?.toInt() ?: 0
                     val unitPrice = if (quantity > 0) amount / quantity else 0
 
                     items.add(ReceiptItemEditAdapter.ReceiptItemEdit(name, quantity, unitPrice, amount))
