@@ -92,6 +92,97 @@ router.get('/stats', async (req, res) => {
       }
     ]);
 
+    // ✅ 날짜 필터가 없을 때만 현재 월, 지난 달, 오늘 통계 계산
+    let currentMonthTotal = 0;
+    let lastMonthTotal = 0;
+    let todayTotal = 0;
+    let monthlyChangePercent = 0;
+
+    if (!startDate && !endDate && !year && !month) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      // 현재 월 시작/종료
+      const currentMonthStart = new Date(currentYear, currentMonth, 1);
+      const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+
+      // 지난 달 시작/종료
+      const lastMonthStart = new Date(currentYear, currentMonth - 1, 1);
+      const lastMonthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59);
+
+      // 오늘 시작/종료
+      const todayStart = new Date(currentYear, currentMonth, now.getDate(), 0, 0, 0);
+      const todayEnd = new Date(currentYear, currentMonth, now.getDate(), 23, 59, 59);
+
+      console.log(`📅 현재 월: ${currentMonthStart.toISOString()} ~ ${currentMonthEnd.toISOString()}`);
+      console.log(`📅 지난 달: ${lastMonthStart.toISOString()} ~ ${lastMonthEnd.toISOString()}`);
+      console.log(`📅 오늘: ${todayStart.toISOString()} ~ ${todayEnd.toISOString()}`);
+
+      // 현재 월 통계
+      const currentMonthStats = await Receipt.aggregate([
+        {
+          $match: {
+            userId: req.user.userId,
+            transactionDate: { $gte: currentMonthStart, $lte: currentMonthEnd }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$totalAmount' }
+          }
+        }
+      ]);
+      currentMonthTotal = currentMonthStats[0]?.totalAmount || 0;
+
+      // 지난 달 통계
+      const lastMonthStats = await Receipt.aggregate([
+        {
+          $match: {
+            userId: req.user.userId,
+            transactionDate: { $gte: lastMonthStart, $lte: lastMonthEnd }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$totalAmount' }
+          }
+        }
+      ]);
+      lastMonthTotal = lastMonthStats[0]?.totalAmount || 0;
+
+      // 오늘 통계
+      const todayStats = await Receipt.aggregate([
+        {
+          $match: {
+            userId: req.user.userId,
+            transactionDate: { $gte: todayStart, $lte: todayEnd }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$totalAmount' }
+          }
+        }
+      ]);
+      todayTotal = todayStats[0]?.totalAmount || 0;
+
+      // 월별 변화율 계산
+      if (lastMonthTotal > 0) {
+        monthlyChangePercent = Math.round(((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100);
+      } else if (currentMonthTotal > 0) {
+        monthlyChangePercent = 100; // 지난 달 0원, 이번 달 지출 있으면 100% 증가
+      }
+
+      console.log(`💰 현재 월 총액: ${currentMonthTotal}`);
+      console.log(`💰 지난 달 총액: ${lastMonthTotal}`);
+      console.log(`💰 오늘 총액: ${todayTotal}`);
+      console.log(`📈 월별 변화율: ${monthlyChangePercent}%`);
+    }
+
     console.log(`✅ 통계 조회 완료: 총액 ${total[0]?.totalAmount || 0}, 개수 ${total[0]?.count || 0}`);
 
     res.json({
@@ -99,7 +190,12 @@ router.get('/stats', async (req, res) => {
       data: {
         byCategory: statsByCategory,
         total: total[0] || { totalAmount: 0, count: 0 },
-        dailyStats: dailyStats.map(d => ({ day: d._id, amount: d.amount }))
+        dailyStats: dailyStats.map(d => ({ day: d._id, amount: d.amount })),
+        // ✅ 추가 통계 (날짜 필터 없을 때만)
+        currentMonthTotal,
+        lastMonthTotal,
+        todayTotal,
+        monthlyChangePercent
       }
     });
   } catch (error) {

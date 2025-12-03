@@ -128,7 +128,7 @@ function generateChatbotResponse(message, stats) {
   if (lowerMessage.match(/총|전체|얼마|지출|다/)) {
     const total = stats.total.totalAmount;
     const advice = getSpendingAdvice(total, stats.byCategory);
-    return `이번 달 총 지출은 ${total.toLocaleString()}원입니다. (영수증 ${stats.total.count}개)\n\n${advice}`;
+    return `총 지출은 ${total.toLocaleString()}원입니다. (영수증 ${stats.total.count}개)\n\n${advice}`;
   }
 
   // 식비 문의

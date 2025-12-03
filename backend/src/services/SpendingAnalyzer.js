@@ -64,6 +64,7 @@ class SpendingAnalyzer {
    */
   async generateRealtimeAlerts(userId, newReceipt, monthlyStats, weeklyStats, lastWeekStats) {
     const alerts = [];
+    const now = new Date();
     const category = newReceipt.category;
     const amount = newReceipt.totalAmount;
 

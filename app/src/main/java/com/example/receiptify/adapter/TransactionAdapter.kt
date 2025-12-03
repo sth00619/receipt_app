@@ -57,6 +57,9 @@ class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.Transacti
                 "food" -> context.getString(R.string.category_food)
                 "transport" -> context.getString(R.string.category_transport)
                 "shopping" -> context.getString(R.string.category_shopping)
+                "healthcare" -> context.getString(R.string.category_healthcare)
+                "entertainment" -> context.getString(R.string.category_entertainment)
+                "utilities" -> context.getString(R.string.category_utilities)
                 else -> context.getString(R.string.category_others)
             }
         }
@@ -66,6 +69,9 @@ class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.Transacti
                 "food" -> R.color.category_food
                 "transport" -> R.color.category_transport
                 "shopping" -> R.color.category_shopping
+                "healthcare" -> R.color.category_healthcare
+                "entertainment" -> R.color.category_entertainment
+                "utilities" -> R.color.category_utilities
                 else -> R.color.category_others
             }
         }

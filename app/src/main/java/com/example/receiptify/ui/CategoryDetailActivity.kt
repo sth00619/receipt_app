@@ -25,6 +25,19 @@ class CategoryDetailActivity : AppCompatActivity() {
         val categoryCode = intent.getStringExtra("category_code") ?: return
         val categoryName = intent.getStringExtra("category_name") ?: categoryCode
 
+        // ✅ Setup toolbar with back button
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            setDisplayShowTitleEnabled(false)
+        }
+
+        // ✅ Handle back button click
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
+
         binding.tvTitle.text = "${categoryName} 상세 내역"
 
         // 어댑터 생성

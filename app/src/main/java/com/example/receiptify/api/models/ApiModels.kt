@@ -374,7 +374,20 @@ data class StatsResponse(
     val total: TotalStat,
 
     @SerializedName("dailyStats")
-    val dailyStats: List<DailyStat>
+    val dailyStats: List<DailyStat>,
+
+    // ✅ 추가: 홈 화면용 통계
+    @SerializedName("currentMonthTotal")
+    val currentMonthTotal: Double = 0.0,
+
+    @SerializedName("lastMonthTotal")
+    val lastMonthTotal: Double = 0.0,
+
+    @SerializedName("todayTotal")
+    val todayTotal: Double = 0.0,
+
+    @SerializedName("monthlyChangePercent")
+    val monthlyChangePercent: Int = 0
 )
 
 /**

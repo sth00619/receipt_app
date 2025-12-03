@@ -42,7 +42,17 @@
     <string name="category_food">Food</string>
     <string name="category_transport">Transport</string>
     <string name="category_shopping">Shopping</string>
+    <string name="category_healthcare">Healthcare</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_utilities">Utilities</string>
     <string name="category_others">Others</string>
+
+    <!-- Dialog -->
+    <string name="dialog_today_spending_title">Today\'s Spending</string>
+    <string name="dialog_all_transactions_title">Recent Transactions</string>
+    <string name="dialog_close">Close</string>
+    <string name="dialog_empty_today">No spending today</string>
+    <string name="dialog_empty_transactions">No transactions yet</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>

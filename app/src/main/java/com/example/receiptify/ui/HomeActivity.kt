@@ -31,6 +31,9 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var transactionAdapter: TransactionAdapter
     private lateinit var receiptRepository: ReceiptRepository
 
+    // ✅ Store all transactions for dialogs
+    private val allTransactions = mutableListOf<Transaction>()
+
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
 
     companion object {
@@ -157,7 +160,7 @@ class HomeActivity : AppCompatActivity() {
      * 최근 영수증 목록 조회
      */
     private suspend fun loadRecentReceipts() {
-        val receiptsResult = receiptRepository.getReceipts(limit = 5)
+        val receiptsResult = receiptRepository.getReceipts(limit = 10)
 
         receiptsResult.onSuccess { receipts ->
             Log.d(TAG, "✅ ${receipts.size}개 영수증 로드 완료")
@@ -177,6 +180,10 @@ class HomeActivity : AppCompatActivity() {
                         userId = authRepository.getUserId() ?: ""
                     )
                 }
+
+                // ✅ Store all transactions for dialogs
+                allTransactions.clear()
+                allTransactions.addAll(transactions)
 
                 transactionAdapter.submitList(transactions)
             }
@@ -214,20 +221,19 @@ class HomeActivity : AppCompatActivity() {
 
             statsResult.fold(
                 onSuccess = { stats ->
-                    val totalAmount = stats.total.totalAmount.toLong()
-                    val receiptCount = stats.total.count
+                    // ✅ 현재 월 총액 사용 (all-time total 대신)
+                    val currentMonthTotal = stats.currentMonthTotal.toLong()
+                    val todayAmount = stats.todayTotal.toLong()
+                    val monthlyChangePercent = stats.monthlyChangePercent
 
-                    Log.d(TAG, "✅ 통계 로드 성공: 총액 ${stats.total.totalAmount}, 개수 ${receiptCount}")
+                    Log.d(TAG, "✅ 통계 로드 성공")
+                    Log.d(TAG, "  - 현재 월 총액: ${currentMonthTotal}")
+                    Log.d(TAG, "  - 오늘 지출: ${todayAmount}")
+                    Log.d(TAG, "  - 월별 변화율: ${monthlyChangePercent}%")
 
-                    // 월별 데이터 업데이트
-                    updateMonthlyData(totalAmount, 12, true)
-
-                    // 오늘 지출 계산 (임시로 월 평균/30)
-                    val todayAmount = if (totalAmount > 0) {
-                        (totalAmount / 30).coerceAtLeast(0)
-                    } else {
-                        0L
-                    }
+                    // ✅ 실제 데이터로 UI 업데이트
+                    val isIncrease = monthlyChangePercent >= 0
+                    updateMonthlyData(currentMonthTotal, Math.abs(monthlyChangePercent), isIncrease)
                     updateTodaySpending(todayAmount)
 
                     Log.d(TAG, "✅ UI 업데이트 완료")
@@ -299,11 +305,11 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.btnViewDetails.setOnClickListener {
-            Toast.makeText(this, R.string.statistics_coming_soon, Toast.LENGTH_SHORT).show()
+            showTodaySpendingDialog()
         }
 
         binding.tvViewAll.setOnClickListener {
-            Toast.makeText(this, R.string.all_transactions_coming_soon, Toast.LENGTH_SHORT).show()
+            showAllTransactionsDialog()
         }
 
         binding.btnChatbot.setOnClickListener {
@@ -354,6 +360,93 @@ class HomeActivity : AppCompatActivity() {
     private fun hideEmptyState() {
         binding.layoutEmptyState.visibility = View.GONE
         binding.rvRecentTransactions.visibility = View.VISIBLE
+    }
+
+    /**
+     * Show today's spending in a modal dialog
+     */
+    private fun showTodaySpendingDialog() {
+        val calendar = java.util.Calendar.getInstance()
+        val today = calendar.apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val tomorrow = calendar.apply {
+            add(java.util.Calendar.DAY_OF_MONTH, 1)
+        }.timeInMillis
+
+        // Filter today's transactions
+        val todayTransactions = allTransactions.filter { transaction ->
+            transaction.date >= today && transaction.date < tomorrow
+        }
+
+        Log.d(TAG, "📊 Today's transactions: ${todayTransactions.size} out of ${allTransactions.size}")
+
+        showTransactionDialog(
+            getString(R.string.dialog_today_spending_title),
+            todayTransactions,
+            getString(R.string.dialog_empty_today)
+        )
+    }
+
+    /**
+     * Show all recent transactions in a modal dialog
+     */
+    private fun showAllTransactionsDialog() {
+        // Take first 10 transactions
+        val recentTransactions = allTransactions.take(10)
+
+        Log.d(TAG, "📊 Showing ${recentTransactions.size} recent transactions")
+
+        showTransactionDialog(
+            getString(R.string.dialog_all_transactions_title),
+            recentTransactions,
+            getString(R.string.dialog_empty_transactions)
+        )
+    }
+
+    /**
+     * Show transaction list in a modal dialog
+     */
+    private fun showTransactionDialog(
+        title: String,
+        transactions: List<Transaction>,
+        emptyMessage: String
+    ) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_transaction_list, null)
+        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvDialogTransactions)
+        val emptyStateView = dialogView.findViewById<android.widget.TextView>(R.id.tvEmptyState)
+
+        // Setup RecyclerView
+        val dialogAdapter = TransactionAdapter()
+        recyclerView.apply {
+            layoutManager = LinearLayoutManager(this@HomeActivity)
+            adapter = dialogAdapter
+        }
+
+        // Show empty state or transactions
+        if (transactions.isEmpty()) {
+            recyclerView.visibility = View.GONE
+            emptyStateView.visibility = View.VISIBLE
+            emptyStateView.text = emptyMessage
+        } else {
+            recyclerView.visibility = View.VISIBLE
+            emptyStateView.visibility = View.GONE
+            dialogAdapter.submitList(transactions)
+        }
+
+        // Create and show dialog
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(dialogView)
+            .setNegativeButton(R.string.dialog_close) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+            .show()
     }
 
     private fun navigateToLogin() {
