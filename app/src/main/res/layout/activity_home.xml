@@ -34,6 +34,43 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
+                <!-- ✅ 알림 아이콘 추가 -->
+                <FrameLayout
+                    android:id="@+id/layoutNotificationIcon"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="12dp">
+
+                    <ImageView
+                        android:id="@+id/ivNotificationIcon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="알림"
+                        android:src="@drawable/ic_notifications"
+                        app:tint="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tvNotificationBadge"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_notification_badge"
+                        android:gravity="center"
+                        android:text="0"
+                        android:textColor="@android:color/white"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                </FrameLayout>
+
                 <!-- ✅ 챗봇 버튼 추가 -->
                 <ImageButton
                     android:id="@+id/btnChatbot"

@@ -218,7 +218,7 @@
                             <ImageView
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
-                                android:src="@drawable/ic_camera"
+                                android:src="@drawable/ic_notifications"
                                 app:tint="@color/primary_purple" />
 
                             <!-- 읽지 않은 알림 배지 -->

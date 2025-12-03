@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Receipt = require('../models/Receipt');
+const Notification = require('../models/Notification');
 const { verifyAuth } = require('../middleware/auth');
+
 
 // 모든 라우트에 인증 미들웨어 적용
 router.use(verifyAuth);
@@ -15,8 +17,8 @@ router.post('/message', async (req, res) => {
     const userId = req.user.userId;
     const { message } = req.body;
 
-    console.log(`💬 챗봇 메시지 수신 - 사용자: ${userId}`);
-    console.log(`📝 메시지: ${message}`);
+    console.log(`💬 챗봇 메시지 수신 - 사용자: ${userId} `);
+    console.log(`📝 메시지: ${message} `);
 
     if (!message) {
       return res.status(400).json({
@@ -35,7 +37,7 @@ router.post('/message', async (req, res) => {
     // 챗봇 응답 생성
     const response = generateChatbotResponse(message, stats);
 
-    console.log(`✅ 챗봇 응답: ${response}`);
+    console.log(`✅ 챗봇 응답: ${response} `);
 
     res.json({
       success: true,
@@ -128,7 +130,7 @@ function generateChatbotResponse(message, stats) {
   if (lowerMessage.match(/총|전체|얼마|지출|다/)) {
     const total = stats.total.totalAmount;
     const advice = getSpendingAdvice(total, stats.byCategory);
-    return `총 지출은 ${total.toLocaleString()}원입니다. (영수증 ${stats.total.count}개)\n\n${advice}`;
+    return `이번 달 총 지출은 ${total.toLocaleString()} 원입니다. (영수증 ${stats.total.count}개) \n\n${advice} `;
   }
 
   // 식비 문의
@@ -136,7 +138,7 @@ function generateChatbotResponse(message, stats) {
     const food = stats.byCategory.food;
     if (food) {
       const advice = getFoodAdvice(food.totalAmount);
-      return `이번 달 식비는 ${food.totalAmount.toLocaleString()}원입니다. (${food.count}회)\n\n${advice}`;
+      return `이번 달 식비는 ${food.totalAmount.toLocaleString()} 원입니다. (${food.count}회) \n\n${advice} `;
     } else {
       return '이번 달 식비 지출 내역이 없습니다.';
     }
@@ -147,7 +149,7 @@ function generateChatbotResponse(message, stats) {
     const transport = stats.byCategory.transport;
     if (transport) {
       const advice = getTransportAdvice(transport.totalAmount);
-      return `이번 달 교통비는 ${transport.totalAmount.toLocaleString()}원입니다. (${transport.count}회)\n\n${advice}`;
+      return `이번 달 교통비는 ${transport.totalAmount.toLocaleString()} 원입니다. (${transport.count}회) \n\n${advice} `;
     } else {
       return '이번 달 교통비 지출 내역이 없습니다.';
     }
@@ -158,7 +160,7 @@ function generateChatbotResponse(message, stats) {
     const shopping = stats.byCategory.shopping;
     if (shopping) {
       const advice = getShoppingAdvice(shopping.totalAmount);
-      return `이번 달 쇼핑 지출은 ${shopping.totalAmount.toLocaleString()}원입니다. (${shopping.count}회)\n\n${advice}`;
+      return `이번 달 쇼핑 지출은 ${shopping.totalAmount.toLocaleString()} 원입니다. (${shopping.count}회) \n\n${advice} `;
     } else {
       return '이번 달 쇼핑 지출 내역이 없습니다.';
     }
@@ -308,13 +310,13 @@ function getSpendingAnalysis(stats) {
   const percentage = maxCategory ? Math.round((maxAmount / total) * 100) : 0;
 
   let analysis = `📊 이번 달 소비 분석\n\n`;
-  analysis += `💰 총 지출: ${total.toLocaleString()}원 (${stats.total.count}건)\n`;
-  analysis += `📈 가장 많이 쓴 곳: ${categoryName} (${maxAmount.toLocaleString()}원, ${percentage}%)\n\n`;
+  analysis += `💰 총 지출: ${total.toLocaleString()} 원(${stats.total.count}건) \n`;
+  analysis += `📈 가장 많이 쓴 곳: ${categoryName} (${maxAmount.toLocaleString()} 원, ${percentage}%) \n\n`;
 
   // 다음 달 목표
   const nextMonthGoal = Math.round(total * 0.9);
-  analysis += `🎯 다음 달 목표: ${nextMonthGoal.toLocaleString()}원\n`;
-  analysis += `(현재보다 10% 절약하기)`;
+  analysis += `🎯 다음 달 목표: ${nextMonthGoal.toLocaleString()} 원\n`;
+  analysis += `(현재보다 10 % 절약하기)`;
 
   return analysis;
 }
@@ -328,7 +330,7 @@ router.post('/advice/:notificationId', async (req, res) => {
     const userId = req.user.userId;
     const { notificationId } = req.params;
 
-    console.log(`💬 알림 기반 조언 요청 - 알림 ID: ${notificationId}`);
+    console.log(`💬 알림 기반 조언 요청 - 알림 ID: ${notificationId} `);
 
     // 알림 조회
     const notification = await Notification.findOne({ _id: notificationId, userId });
@@ -381,22 +383,22 @@ function generateAdviceForNotification(notification, stats) {
   switch (metadata?.triggerType) {
     case 'high_amount':
       advice = `💸 ${amount.toLocaleString()}원의 고액 지출이 발생했습니다.\n\n`;
-      advice += `📊 이번 달 ${getCategoryName(category)} 총 지출: ${stats.byCategory[category]?.totalAmount.toLocaleString() || 0}원\n\n`;
-      advice += `💡 조언:\n`;
-      advice += `• 이 지출이 계획된 것이었나요?\n`;
-      advice += `• 같은 금액으로 할 수 있는 대안이 있었나요?\n`;
+      advice += `📊 이번 달 ${getCategoryName(category)} 총 지출: ${stats.byCategory[category]?.totalAmount.toLocaleString() || 0} 원\n\n`;
+      advice += `💡 조언: \n`;
+      advice += `• 이 지출이 계획된 것이었나요 ?\n`;
+      advice += `• 같은 금액으로 할 수 있는 대안이 있었나요 ?\n`;
       advice += `• 다음엔 여러 업체를 비교해보세요\n`;
-      advice += `• 할인이나 쿠폰을 활용하면 10-20% 절약 가능합니다`;
+      advice += `• 할인이나 쿠폰을 활용하면 10 - 20 % 절약 가능합니다`;
       break;
 
     case 'budget_exceeded':
       const overAmount = metadata.overAmount;
       advice = `⚠️ ${getCategoryName(category)} 예산을 ${overAmount.toLocaleString()}원 초과했습니다!\n\n`;
-      advice += `📊 현재 상황:\n`;
-      advice += `• 이번 달 지출: ${amount.toLocaleString()}원\n`;
-      advice += `• 목표 예산: ${metadata.limit.toLocaleString()}원\n`;
-      advice += `• 초과 금액: ${overAmount.toLocaleString()}원\n\n`;
-      advice += `💡 남은 기간 절약 방법:\n`;
+      advice += `📊 현재 상황: \n`;
+      advice += `• 이번 달 지출: ${amount.toLocaleString()} 원\n`;
+      advice += `• 목표 예산: ${metadata.limit.toLocaleString()} 원\n`;
+      advice += `• 초과 금액: ${overAmount.toLocaleString()} 원\n\n`;
+      advice += `💡 남은 기간 절약 방법: \n`;
 
       if (category === 'food') {
         advice += `• 외식 대신 집밥으로 전환\n`;
@@ -416,70 +418,70 @@ function generateAdviceForNotification(notification, stats) {
     case 'weekly_spike':
       const increasePercent = metadata.increasePercent;
       advice = `📈 이번 주 ${getCategoryName(category)} 지출이 ${increasePercent}% 급증했습니다!\n\n`;
-      advice += `📊 비교:\n`;
-      advice += `• 지난 주: ${metadata.lastWeekAmount.toLocaleString()}원\n`;
-      advice += `• 이번 주: ${amount.toLocaleString()}원\n`;
-      advice += `• 증가액: ${(amount - metadata.lastWeekAmount).toLocaleString()}원\n\n`;
-      advice += `🔍 체크리스트:\n`;
-      advice += `• 특별한 이벤트나 행사가 있었나요?\n`;
-      advice += `• 충동구매가 있었나요?\n`;
-      advice += `• 다음 주는 지출을 줄여보는 건 어떨까요?`;
+      advice += `📊 비교: \n`;
+      advice += `• 지난 주: ${metadata.lastWeekAmount.toLocaleString()} 원\n`;
+      advice += `• 이번 주: ${amount.toLocaleString()} 원\n`;
+      advice += `• 증가액: ${(amount - metadata.lastWeekAmount).toLocaleString()} 원\n\n`;
+      advice += `🔍 체크리스트: \n`;
+      advice += `• 특별한 이벤트나 행사가 있었나요 ?\n`;
+      advice += `• 충동구매가 있었나요 ?\n`;
+      advice += `• 다음 주는 지출을 줄여보는 건 어떨까요 ? `;
       break;
 
     case 'frequent_dining':
       const todayCount = metadata.todayCount;
       advice = `🍽️ 오늘 ${todayCount}번째 외식입니다!\n\n`;
-      advice += `💡 식비 절약 팁:\n`;
+      advice += `💡 식비 절약 팁: \n`;
       advice += `• 주말에 식재료 준비하기\n`;
-      advice += `• 도시락 싸가기 (월 10만원 절약)\n`;
+      advice += `• 도시락 싸가기(월 10만원 절약) \n`;
       advice += `• 간단한 요리 레시피 배우기\n`;
-      advice += `• 외식은 주 2-3회로 제한\n\n`;
-      advice += `📊 예상 절약액:\n`;
+      advice += `• 외식은 주 2 - 3회로 제한\n\n`;
+      advice += `📊 예상 절약액: \n`;
       advice += `• 도시락 주 5회: 월 10만원 절약\n`;
       advice += `• 커피 집에서: 월 3만원 절약`;
       break;
 
     case 'weekend_shopping':
-          advice = `🛍️ 주말 쇼핑 ${amount.toLocaleString()}원!\n\n`;
-          advice += `💡 충동구매 방지 팁:\n`;
-          advice += `• 쇼핑 목록 미리 작성하기\n`;
-          advice += `• 장바구니에 담고 24시간 기다리기\n`;
-          advice += `• "정말 필요한가?" 3번 자문하기\n`;
-          advice += `• 중고 거래 먼저 확인하기\n\n`;
-          advice += `📊 주말 쇼핑 통계:\n`;
-          advice += `• 충동구매 확률: 70%\n`;
-          advice += `• 24시간 후 재검토 시 구매 취소율: 50%`;
-          break;
+      advice = `🛍️ 주말 쇼핑 ${amount.toLocaleString()} 원!\n\n`;
+      advice += `💡 충동구매 방지 팁: \n`;
+      advice += `• 쇼핑 목록 미리 작성하기\n`;
+      advice += `• 장바구니에 담고 24시간 기다리기\n`;
+      advice += `• "정말 필요한가?" 3번 자문하기\n`;
+      advice += `• 중고 거래 먼저 확인하기\n\n`;
+      advice += `📊 주말 쇼핑 통계: \n`;
+      advice += `• 충동구매 확률: 70 %\n`;
+      advice += `• 24시간 후 재검토 시 구매 취소율: 50 % `;
+      break;
 
-        case 'late_night_spending':
-          advice = `🌙 심야 ${getCategoryName(category)} 지출 ${amount.toLocaleString()}원!\n\n`;
-          advice += `💡 심야 소비 줄이기:\n`;
+    case 'late_night_spending':
+      advice = `🌙 심야 ${getCategoryName(category)} 지출 ${amount.toLocaleString()} 원!\n\n`;
+      advice += `💡 심야 소비 줄이기: \n`;
 
-          if (category === 'food') {
-            advice += `• 저녁 식사 미리 준비하기\n`;
-            advice += `• 간식 미리 구비하기\n`;
-            advice += `• 배달 앱 삭제 고려\n`;
-            advice += `• 심야 배달비는 2-3배 비쌉니다`;
-          } else if (category === 'transport') {
-            advice += `• 대중교통 막차 시간 체크\n`;
-            advice += `• 숙박 시설 이용 고려\n`;
-            advice += `• 심야 택시는 할증료 부과됩니다\n`;
-            advice += `• 카풀 서비스 활용`;
-          }
-          break;
-
-        default:
-          // 기본 조언
-          advice = `📊 ${notification.title}\n\n`;
-          advice += `${notification.message}\n\n`;
-          advice += `💡 일반 조언:\n`;
-          advice += `• 지출 내역을 정기적으로 확인하세요\n`;
-          advice += `• 예산을 설정하고 지키세요\n`;
-          advice += `• 불필요한 구독 서비스를 정리하세요\n`;
-          advice += `• 고정 지출과 변동 지출을 구분하세요`;
+      if (category === 'food') {
+        advice += `• 저녁 식사 미리 준비하기\n`;
+        advice += `• 간식 미리 구비하기\n`;
+        advice += `• 배달 앱 삭제 고려\n`;
+        advice += `• 심야 배달비는 2 - 3배 비쌉니다`;
+      } else if (category === 'transport') {
+        advice += `• 대중교통 막차 시간 체크\n`;
+        advice += `• 숙박 시설 이용 고려\n`;
+        advice += `• 심야 택시는 할증료 부과됩니다\n`;
+        advice += `• 카풀 서비스 활용`;
       }
+      break;
 
-      return advice;
-    }
+    default:
+      // 기본 조언
+      advice = `📊 ${notification.title} \n\n`;
+      advice += `${notification.message} \n\n`;
+      advice += `💡 일반 조언: \n`;
+      advice += `• 지출 내역을 정기적으로 확인하세요\n`;
+      advice += `• 예산을 설정하고 지키세요\n`;
+      advice += `• 불필요한 구독 서비스를 정리하세요\n`;
+      advice += `• 고정 지출과 변동 지출을 구분하세요`;
+  }
+
+  return advice;
+}
 
 module.exports = router;

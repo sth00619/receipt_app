@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.receiptify.R
 import com.example.receiptify.databinding.ActivityProfileBinding
 import com.example.receiptify.repository.AuthRepository
+import com.example.receiptify.repository.NotificationRepository
 import com.example.receiptify.utils.PreferenceManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -30,6 +31,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var authRepository: AuthRepository
     private lateinit var prefs: SharedPreferences
     private lateinit var preferenceManager: PreferenceManager
+    private lateinit var notificationRepository: NotificationRepository
     private var googleSignInClient: GoogleSignInClient? = null
 
     companion object {
@@ -47,11 +49,13 @@ class ProfileActivity : AppCompatActivity() {
         authRepository = AuthRepository(this)
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         preferenceManager = PreferenceManager(this)
+        notificationRepository = NotificationRepository()
 
         setupGoogleSignIn()
         setupToolbar()
         loadUserProfile()
         loadSettings()  // ✅ 모든 설정 로드
+        loadNotificationCount()  // ✅ 알림 개수 로드
         setupClickListeners()
         setupBottomNavigation()
     }
@@ -237,5 +241,57 @@ class ProfileActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Load notification count
+     */
+    private fun loadNotificationCount() {
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "📬 Loading notification count...")
+
+                val result = notificationRepository.getNotifications(unreadOnly = false)
+
+                result.onSuccess { response ->
+                    val unreadCount = response.unreadCount
+                    Log.d(TAG, "✅ Unread notifications: $unreadCount")
+
+                    withContext(Dispatchers.Main) {
+                        updateNotificationBadge(unreadCount)
+                    }
+                }.onFailure { error ->
+                    Log.e(TAG, "❌ Failed to load notification count", error)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Exception while loading notification count", e)
+            }
+        }
+    }
+
+    /**
+     * Update notification badge UI
+     */
+    private fun updateNotificationBadge(unreadCount: Int) {
+        binding.tvNotificationCount.text = "${unreadCount}개"
+
+        if (unreadCount > 0) {
+            binding.tvNotificationBadge.visibility = android.view.View.VISIBLE
+            binding.tvNotificationBadge.text = if (unreadCount > 99) {
+                "99+"
+            } else {
+                unreadCount.toString()
+            }
+            Log.d(TAG, "📍 Badge updated: $unreadCount")
+        } else {
+            binding.tvNotificationBadge.visibility = android.view.View.GONE
+            Log.d(TAG, "📍 Badge hidden (no unread notifications)")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload notification count when returning from NotificationsActivity
+        loadNotificationCount()
     }
 }

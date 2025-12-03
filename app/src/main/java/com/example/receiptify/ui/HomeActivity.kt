@@ -15,10 +15,13 @@ import com.example.receiptify.adapter.TransactionAdapter
 import com.example.receiptify.databinding.ActivityHomeBinding
 import com.example.receiptify.model.Transaction
 import com.example.receiptify.repository.AuthRepository
+import com.example.receiptify.repository.NotificationRepository
 import com.example.receiptify.repository.ReceiptRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.navercorp.nid.NaverIdLoginSDK
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,9 +33,13 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var authRepository: AuthRepository
     private lateinit var transactionAdapter: TransactionAdapter
     private lateinit var receiptRepository: ReceiptRepository
+    private lateinit var notificationRepository: NotificationRepository
 
     // ✅ Store all transactions for dialogs
     private val allTransactions = mutableListOf<Transaction>()
+
+    // ✅ Notification count
+    private var unreadNotificationCount = 0
 
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
 
@@ -49,6 +56,7 @@ class HomeActivity : AppCompatActivity() {
 
         authRepository = AuthRepository(this)
         receiptRepository = ReceiptRepository()
+        notificationRepository = NotificationRepository()
 
         // ✅ 인증 토큰 디버깅
         checkAuthTokens()
@@ -144,6 +152,9 @@ class HomeActivity : AppCompatActivity() {
 
                 // 2. 통계 조회
                 loadStats()
+
+                // 3. 알림 개수 조회
+                loadNotificationCount()
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 데이터 로드 중 오류", e)
@@ -276,6 +287,51 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /**
+     * Load notification count
+     */
+    private suspend fun loadNotificationCount() {
+        try {
+            Log.d(TAG, "📬 Loading notification count...")
+
+            val result = notificationRepository.getNotifications(unreadOnly = false)
+
+            result.onSuccess { response ->
+                unreadNotificationCount = response.unreadCount
+                Log.d(TAG, "✅ Unread notifications: $unreadNotificationCount")
+
+                withContext(Dispatchers.Main) {
+                    updateNotificationBadge()
+                }
+            }.onFailure { error ->
+                Log.e(TAG, "❌ Failed to load notification count", error)
+                // Don't show error toast for notifications, just log it
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception while loading notification count", e)
+        }
+    }
+
+
+    /**
+     * Update notification badge UI
+     */
+    private fun updateNotificationBadge() {
+        if (unreadNotificationCount > 0) {
+            binding.tvNotificationBadge.visibility = View.VISIBLE
+            binding.tvNotificationBadge.text = if (unreadNotificationCount > 99) {
+                "99+"
+            } else {
+                unreadNotificationCount.toString()
+            }
+            Log.d(TAG, "📍 Badge updated: $unreadNotificationCount")
+        } else {
+            binding.tvNotificationBadge.visibility = View.GONE
+            Log.d(TAG, "📍 Badge hidden (no unread notifications)")
+        }
+    }
+
+
+    /**
      * 빈 통계 표시
      */
     private fun showEmptyStats() {
@@ -310,6 +366,12 @@ class HomeActivity : AppCompatActivity() {
 
         binding.tvViewAll.setOnClickListener {
             showAllTransactionsDialog()
+        }
+
+        // ✅ 알림 아이콘 클릭
+        binding.layoutNotificationIcon.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            startActivity(intent)
         }
 
         binding.btnChatbot.setOnClickListener {
