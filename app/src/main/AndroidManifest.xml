@@ -156,7 +156,7 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
-            android:name=".ui.ChatListActivity"
+            android:name=".ui.ChatSessionListActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
     </application>

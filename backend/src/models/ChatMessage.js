@@ -6,6 +6,12 @@ const chatMessageSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    sessionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ChatSession',
+        required: true,
+        index: true
+    },
     role: {
         type: String,
         enum: ['user', 'bot', 'system'],
@@ -30,5 +36,7 @@ const chatMessageSchema = new mongoose.Schema({
 
 // 사용자별 최근 메시지 조회용 인덱스
 chatMessageSchema.index({ userId: 1, createdAt: -1 });
+// 세션별 메시지 조회용 인덱스
+chatMessageSchema.index({ sessionId: 1, createdAt: 1 });
 
 module.exports = mongoose.model('ChatMessage', chatMessageSchema);

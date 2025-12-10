@@ -97,7 +97,50 @@ interface ReceiptApiService {
     @POST("notifications/analyze")
     suspend fun analyzeSpending(): Response<ApiResponse<AnalyzeResponse>>
 
-    // 챗봇 메시지 전송
+    // ============ 챗봇 세션 관리 API ============
+
+    // 세션 목록 조회
+    @GET("chatbot/sessions")
+    suspend fun getChatSessions(
+        @Query("limit") limit: Int = 20,
+        @Query("skip") skip: Int = 0
+    ): Response<ApiResponse<SessionsResponse>>
+
+    // 새 세션 생성
+    @POST("chatbot/sessions")
+    suspend fun createChatSession(
+        @Body request: CreateSessionRequest
+    ): Response<ApiResponse<CreateSessionResponse>>
+
+    // 특정 세션의 메시지 조회
+    @GET("chatbot/sessions/{sessionId}")
+    suspend fun getSessionMessages(
+        @Path("sessionId") sessionId: String,
+        @Query("limit") limit: Int = 100,
+        @Query("skip") skip: Int = 0
+    ): Response<ApiResponse<SessionDetailResponse>>
+
+    // 세션 제목 수정
+    @PUT("chatbot/sessions/{sessionId}")
+    suspend fun updateSession(
+        @Path("sessionId") sessionId: String,
+        @Body request: Map<String, String>
+    ): Response<ApiResponse<CreateSessionResponse>>
+
+    // 세션 삭제
+    @DELETE("chatbot/sessions/{sessionId}")
+    suspend fun deleteSession(
+        @Path("sessionId") sessionId: String
+    ): Response<ApiResponse<Any>>
+
+    // 특정 세션에 메시지 전송
+    @POST("chatbot/sessions/{sessionId}/message")
+    suspend fun sendSessionMessage(
+        @Path("sessionId") sessionId: String,
+        @Body request: Map<String, String>
+    ): Response<ApiResponse<SendMessageResponse>>
+
+    // 챗봇 메시지 전송 (레거시 - 자동 세션 생성)
     @POST("chatbot/message")
     suspend fun sendChatbotMessage(
         @Body request: Map<String, String>

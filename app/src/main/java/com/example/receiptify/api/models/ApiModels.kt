@@ -427,6 +427,144 @@ data class DailyStat(
     val amount: Double
 )
 
+// ==================== 챗봇 세션 관련 모델 ====================
+
+/**
+ * 채팅 세션
+ */
+data class ChatSession(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("userId")
+    val userId: String,
+
+    @SerializedName("title")
+    val title: String,
+
+    @SerializedName("lastMessage")
+    val lastMessage: String,
+
+    @SerializedName("messageCount")
+    val messageCount: Int,
+
+    @SerializedName("isActive")
+    val isActive: Boolean,
+
+    @SerializedName("createdAt")
+    val createdAt: String,
+
+    @SerializedName("updatedAt")
+    val updatedAt: String
+)
+
+/**
+ * 채팅 메시지
+ */
+data class ChatMessageItem(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("userId")
+    val userId: String,
+
+    @SerializedName("sessionId")
+    val sessionId: String,
+
+    @SerializedName("role")
+    val role: String,  // "user", "bot", "system"
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("metadata")
+    val metadata: Map<String, Any>? = null,
+
+    @SerializedName("createdAt")
+    val createdAt: String
+)
+
+/**
+ * 세션 목록 응답
+ */
+data class SessionsResponse(
+    @SerializedName("sessions")
+    val sessions: List<ChatSession>,
+
+    @SerializedName("total")
+    val total: Int,
+
+    @SerializedName("hasMore")
+    val hasMore: Boolean
+)
+
+/**
+ * 세션 상세 응답
+ */
+data class SessionDetailResponse(
+    @SerializedName("session")
+    val session: ChatSession,
+
+    @SerializedName("messages")
+    val messages: List<ChatMessageItem>,
+
+    @SerializedName("total")
+    val total: Int,
+
+    @SerializedName("hasMore")
+    val hasMore: Boolean
+)
+
+/**
+ * 세션 생성 요청
+ */
+data class CreateSessionRequest(
+    @SerializedName("title")
+    val title: String? = null
+)
+
+/**
+ * 세션 생성 응답
+ */
+data class CreateSessionResponse(
+    @SerializedName("session")
+    val session: ChatSession
+)
+
+/**
+ * 메시지 전송 요청
+ */
+data class SendMessageRequest(
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("sessionId")
+    val sessionId: String? = null
+)
+
+/**
+ * 메시지 전송 응답
+ */
+data class SendMessageResponse(
+    @SerializedName("response")
+    val response: String,
+
+    @SerializedName("stats")
+    val stats: Map<String, Any>? = null,
+
+    @SerializedName("messageId")
+    val messageId: String? = null,
+
+    @SerializedName("sessionId")
+    val sessionId: String? = null,
+
+    @SerializedName("userMessage")
+    val userMessage: ChatMessageItem? = null,
+
+    @SerializedName("botMessage")
+    val botMessage: ChatMessageItem? = null
+)
+
 // ==================== 거래 관련 모델 ====================
 
 /**

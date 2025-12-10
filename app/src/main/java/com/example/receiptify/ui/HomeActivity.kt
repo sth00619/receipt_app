@@ -491,7 +491,7 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.btnChatbot.setOnClickListener {
-            val intent = Intent(this@HomeActivity, ChatbotActivity::class.java)
+            val intent = Intent(this@HomeActivity, ChatSessionListActivity::class.java)
             startActivity(intent)
         }
 

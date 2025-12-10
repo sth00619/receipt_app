@@ -32,8 +32,8 @@ class ChatMessageAdapter(
                     ContextCompat.getColor(itemView.context, R.color.white)
                 )
 
-                // ✅ LinearLayout의 gravity 설정
-                (binding.root.layoutParams as? androidx.recyclerview.widget.RecyclerView.LayoutParams)?.apply {
+                // LinearLayout의 gravity 설정
+                (binding.root.layoutParams as? RecyclerView.LayoutParams)?.apply {
                     width = ViewGroup.LayoutParams.MATCH_PARENT
                 }
                 binding.layoutMessageContainer.gravity = Gravity.END
@@ -55,7 +55,7 @@ class ChatMessageAdapter(
                     ContextCompat.getColor(itemView.context, R.color.gray)
                 )
 
-                // ✅ LinearLayout의 gravity 설정
+                // LinearLayout의 gravity 설정
                 binding.layoutMessageContainer.gravity = Gravity.START
 
                 // 마진 설정
@@ -65,7 +65,7 @@ class ChatMessageAdapter(
             }
         }
 
-        // ✅ dp를 px로 변환하는 확장 함수
+        // dp를 px로 변환하는 확장 함수
         private fun Int.dpToPx(): Int {
             return (this * itemView.context.resources.displayMetrics.density).toInt()
         }
