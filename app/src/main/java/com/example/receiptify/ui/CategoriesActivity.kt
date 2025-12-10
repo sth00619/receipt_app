@@ -77,7 +77,7 @@ class CategoriesActivity : AppCompatActivity() {
 
         // Chatbot icon click
         binding.btnChatbot.setOnClickListener {
-            val intent = Intent(this, ChatbotActivity::class.java)
+            val intent = Intent(this, ChatListActivity::class.java)
             startActivity(intent)
         }
 

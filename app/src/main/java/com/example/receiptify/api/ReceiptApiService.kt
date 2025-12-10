@@ -109,6 +109,31 @@ interface ReceiptApiService {
         @Path("notificationId") notificationId: String
     ): Response<ApiResponse<Map<String, Any>>>
 
+    // 챗봇 세션 관련
+    @POST("chatbot/sessions")
+    suspend fun createChatSession(@Body body: Map<String, String>): Response<ApiResponse<ChatSessionResponse>>
+
+    @GET("chatbot/sessions")
+    suspend fun fetchChatSessions(
+        @Query("limit") limit: Int = 20,
+        @Query("skip") skip: Int = 0
+    ): Response<ApiResponse<List<ChatSessionResponse>>>
+
+    @DELETE("chatbot/sessions/{id}")
+    suspend fun removeChatSession(@Path("id") sessionId: String): Response<ApiResponse<DeleteResponse>>
+
+    // 챗봇 메시지 조회 (sessionId 추가)
+    @GET("chatbot/messages")
+    suspend fun fetchChatMessages(
+        @Query("limit") limit: Int = 50,
+        @Query("skip") skip: Int = 0,
+        @Query("sessionId") sessionId: String? = null
+    ): Response<ApiResponse<ChatMessagesResponse>>
+
+    // 전체 대화 내역 삭제
+    @DELETE("chatbot/messages")
+    suspend fun deleteAllChatMessages(): Response<ApiResponse<DeleteResponse>>
+
     // ============ 영수증 관련 API ============
 
     // Health Check
