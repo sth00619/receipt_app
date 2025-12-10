@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Receipt = require('../models/Receipt');
 const Notification = require('../models/Notification');
+const ChatMessage = require('../models/ChatMessage');
 const { verifyAuth } = require('../middleware/auth');
 
 
@@ -27,6 +28,14 @@ router.post('/message', async (req, res) => {
       });
     }
 
+    // ✅ 사용자 메시지 저장
+    const userMessage = await ChatMessage.create({
+      userId,
+      role: 'user',
+      message,
+      metadata: {}
+    });
+
     // 현재 월 통계 조회
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -37,13 +46,25 @@ router.post('/message', async (req, res) => {
     // 챗봇 응답 생성
     const response = generateChatbotResponse(message, stats);
 
+    // ✅ 봇 응답 저장
+    const botMessage = await ChatMessage.create({
+      userId,
+      role: 'bot',
+      message: response,
+      metadata: {
+        stats,
+        userMessageId: userMessage._id
+      }
+    });
+
     console.log(`✅ 챗봇 응답: ${response} `);
 
     res.json({
       success: true,
       data: {
         response,
-        stats
+        stats,
+        messageId: botMessage._id
       }
     });
 
@@ -57,6 +78,45 @@ router.post('/message', async (req, res) => {
   }
 });
 
+
+/**
+ * GET /api/chatbot/messages
+ * 챗봇 대화 내역 조회
+ */
+router.get('/messages', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { limit = 50, skip = 0 } = req.query;
+
+    console.log(`📋 대화 내역 조회 - 사용자: ${userId}`);
+
+    const messages = await ChatMessage.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
+
+    const total = await ChatMessage.countDocuments({ userId });
+
+    console.log(`✅ ${messages.length}개 메시지 조회 완료 (전체: ${total}개)`);
+
+    res.json({
+      success: true,
+      data: {
+        messages: messages.reverse(), // 오래된 순서로 반환
+        total,
+        hasMore: total > (parseInt(skip) + messages.length)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ 대화 내역 조회 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '대화 내역 조회에 실패했습니다',
+      error: error.message
+    });
+  }
+});
 
 /**
  * 월간 통계 조회

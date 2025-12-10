@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -12,9 +13,12 @@ import com.example.receiptify.R
 import com.example.receiptify.adapter.CategoryAdapter
 import com.example.receiptify.databinding.ActivityCategoriesBinding
 import com.example.receiptify.model.CategorySummary
+import com.example.receiptify.repository.NotificationRepository
 import com.example.receiptify.repository.ReceiptRepository
 import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.*
 
@@ -23,6 +27,7 @@ class CategoriesActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCategoriesBinding
     private lateinit var categoryAdapter: CategoryAdapter
     private lateinit var receiptRepository: ReceiptRepository
+    private lateinit var notificationRepository: NotificationRepository
 
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
 
@@ -48,10 +53,12 @@ class CategoriesActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         receiptRepository = ReceiptRepository()
+        notificationRepository = NotificationRepository()
 
         setupUI()
         setupRecyclerView()
         setupTabLayout()
+        setupToolbarIcons()
         loadCategories(PeriodType.ALL)
         setupClickListeners()
     }
@@ -61,11 +68,54 @@ class CategoriesActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowTitleEnabled(false)
     }
 
+    private fun setupToolbarIcons() {
+        // Notification icon click
+        binding.layoutNotificationIcon.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Chatbot icon click
+        binding.btnChatbot.setOnClickListener {
+            val intent = Intent(this, ChatbotActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Load notification count
+        loadNotificationCount()
+    }
+
+    private fun loadNotificationCount() {
+        lifecycleScope.launch {
+            try {
+                val result = notificationRepository.getNotifications(unreadOnly = false)
+                result.onSuccess { response ->
+                    val unreadCount = response.unreadCount
+                    withContext(Dispatchers.Main) {
+                        if (unreadCount > 0) {
+                            binding.tvNotificationBadge.visibility = View.VISIBLE
+                            binding.tvNotificationBadge.text = if (unreadCount > 99) "99+" else unreadCount.toString()
+                        } else {
+                            binding.tvNotificationBadge.visibility = View.GONE
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load notification count", e)
+            }
+        }
+    }
+
     private fun setupRecyclerView() {
         categoryAdapter = CategoryAdapter { category ->
             val intent = Intent(this, CategoryDetailActivity::class.java).apply {
                 putExtra("category_code", category.code)     // food
                 putExtra("category_name", category.name)     // Food
+
+                // ✅ 날짜 범위 정보 전달
+                putExtra("period_type", currentPeriodType.name)
+                customStartDate?.let { putExtra("custom_start_date", it.time) }
+                customEndDate?.let { putExtra("custom_end_date", it.time) }
             }
             startActivity(intent)
         }
@@ -113,13 +163,33 @@ class CategoriesActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // 날짜 범위 계산
-                val (year, month) = calculateYearMonth(periodType)
+                Log.d(TAG, "📅 기간: ${periodType.name}")
 
-                Log.d(TAG, "📅 기간: ${periodType.name}, year: $year, month: $month")
-
-                // 기존 getStats() 메서드 사용
-                val statsResult = receiptRepository.getStats(month, year)
+                // ✅ 기간 타입에 따라 다른 API 호출
+                val statsResult = when (periodType) {
+                    PeriodType.ALL -> {
+                        // 전체: 기존 방식 (월 필터 없음)
+                        receiptRepository.getStats(null, null)
+                    }
+                    PeriodType.THIS_MONTH -> {
+                        // 이번 달: 기존 방식 (월 필터)
+                        val calendar = Calendar.getInstance()
+                        val year = calendar.get(Calendar.YEAR)
+                        val month = calendar.get(Calendar.MONTH) + 1
+                        receiptRepository.getStats(month, year)
+                    }
+                    PeriodType.THIS_WEEK -> {
+                        // 이번 주: 날짜 범위 API 사용
+                        val (startDate, endDate) = calculateWeekRange()
+                        Log.d(TAG, "📅 이번 주 범위: $startDate ~ $endDate")
+                        receiptRepository.getStatsByDateRange(startDate, endDate)
+                    }
+                    PeriodType.CUSTOM -> {
+                        // 사용자 지정: 날짜 범위 API 사용
+                        Log.d(TAG, "📅 사용자 지정 범위: $customStartDate ~ $customEndDate")
+                        receiptRepository.getStatsByDateRange(customStartDate, customEndDate)
+                    }
+                }
 
                 statsResult.onSuccess { stats ->
                     Log.d(TAG, "✅ 통계 로드 완료 (${periodType.name})")
@@ -202,6 +272,39 @@ class CategoriesActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    /**
+     * 이번 주 범위 계산 (월요일 00:00 ~ 일요일 23:59)
+     */
+    private fun calculateWeekRange(): Pair<Date, Date> {
+        val calendar = Calendar.getInstance()
+        calendar.firstDayOfWeek = Calendar.MONDAY
+
+        // 현재 요일 가져오기
+        val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+        // 월요일까지 거슬러 올라가기
+        val daysFromMonday = when (currentDayOfWeek) {
+            Calendar.SUNDAY -> 6  // 일요일은 지난주가 아니라 이번주로 계산
+            else -> currentDayOfWeek - Calendar.MONDAY
+        }
+
+        calendar.add(Calendar.DAY_OF_MONTH, -daysFromMonday)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val weekStart = calendar.time
+
+        calendar.add(Calendar.DAY_OF_MONTH, 6)
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        calendar.set(Calendar.MILLISECOND, 999)
+        val weekEnd = calendar.time
+
+        return Pair(weekStart, weekEnd)
     }
 
     /**

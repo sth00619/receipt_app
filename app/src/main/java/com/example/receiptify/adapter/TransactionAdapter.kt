@@ -14,7 +14,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.TransactionViewHolder>(TransactionDiffCallback()) {
+class TransactionAdapter(
+    private val onItemClick: ((Transaction) -> Unit)? = null
+) : ListAdapter<Transaction, TransactionAdapter.TransactionViewHolder>(TransactionDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
         val binding = ItemTransactionBinding.inflate(
@@ -22,7 +24,7 @@ class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.Transacti
             parent,
             false
         )
-        return TransactionViewHolder(binding)
+        return TransactionViewHolder(binding, onItemClick)
     }
 
     override fun onBindViewHolder(holder: TransactionViewHolder, position: Int) {
@@ -30,11 +32,12 @@ class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.Transacti
     }
 
     class TransactionViewHolder(
-        private val binding: ItemTransactionBinding
+        private val binding: ItemTransactionBinding,
+        private val onItemClick: ((Transaction) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
-        private val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.KOREA)
+        private val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.KOREA)
 
         fun bind(transaction: Transaction) {
             binding.apply {
@@ -48,6 +51,11 @@ class TransactionAdapter : ListAdapter<Transaction, TransactionAdapter.Transacti
                 viewCategoryIndicator.setBackgroundColor(
                     ContextCompat.getColor(root.context, categoryColor)
                 )
+
+                // Set click listener
+                root.setOnClickListener {
+                    onItemClick?.invoke(transaction)
+                }
             }
         }
 

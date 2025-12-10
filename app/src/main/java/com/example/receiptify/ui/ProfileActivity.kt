@@ -3,9 +3,16 @@ package com.example.receiptify.ui
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -14,6 +21,7 @@ import com.example.receiptify.R
 import com.example.receiptify.databinding.ActivityProfileBinding
 import com.example.receiptify.repository.AuthRepository
 import com.example.receiptify.repository.NotificationRepository
+import com.example.receiptify.repository.ProfileImageRepository
 import com.example.receiptify.utils.PreferenceManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -32,7 +40,15 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var preferenceManager: PreferenceManager
     private lateinit var notificationRepository: NotificationRepository
+    private lateinit var profileImageRepository: ProfileImageRepository
     private var googleSignInClient: GoogleSignInClient? = null
+
+    // Image picker launcher
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { handleImageSelected(it) }
+    }
 
     companion object {
         private const val TAG = "ProfileActivity"
@@ -50,12 +66,13 @@ class ProfileActivity : AppCompatActivity() {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         preferenceManager = PreferenceManager(this)
         notificationRepository = NotificationRepository()
+        profileImageRepository = ProfileImageRepository(this)
 
         setupGoogleSignIn()
         setupToolbar()
         loadUserProfile()
+        loadProfileImage()  // ✅ Load profile image
         loadSettings()  // ✅ 모든 설정 로드
-        loadNotificationCount()  // ✅ 알림 개수 로드
         setupClickListeners()
         setupBottomNavigation()
     }
@@ -72,6 +89,42 @@ class ProfileActivity : AppCompatActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
+
+        // Notification icon click
+        binding.layoutNotificationIcon.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Chatbot icon click
+        binding.btnChatbot.setOnClickListener {
+            val intent = Intent(this, ChatbotActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Load notification count
+        loadNotificationCount()
+    }
+
+    private fun loadNotificationCount() {
+        lifecycleScope.launch {
+            try {
+                val result = notificationRepository.getNotifications(unreadOnly = false)
+                result.onSuccess { response ->
+                    val unreadCount = response.unreadCount
+                    withContext(Dispatchers.Main) {
+                        if (unreadCount > 0) {
+                            binding.tvNotificationBadge.visibility = android.view.View.VISIBLE
+                            binding.tvNotificationBadge.text = if (unreadCount > 99) "99+" else unreadCount.toString()
+                        } else {
+                            binding.tvNotificationBadge.visibility = android.view.View.GONE
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load notification count", e)
+            }
+        }
     }
 
     private fun loadUserProfile() {
@@ -79,6 +132,37 @@ class ProfileActivity : AppCompatActivity() {
 
         binding.tvUserName.text = email.split("@").getOrNull(0) ?: "사용자"
         binding.tvEmail.text = email
+    }
+
+    /**
+     * Load profile image from Room database
+     */
+    private fun loadProfileImage() {
+        lifecycleScope.launch {
+            try {
+                // Use email as user identifier
+                val userEmail = prefs.getString("user_email", null)
+                if (userEmail == null) {
+                    Log.w(TAG, "No user email found")
+                    binding.ivProfile.setImageResource(R.drawable.ic_person)
+                    return@launch
+                }
+
+                val bitmap = profileImageRepository.getProfileImage(userEmail)
+
+                bitmap?.let {
+                    binding.ivProfile.setImageBitmap(it)
+                    Log.d(TAG, "✅ Profile image loaded for: $userEmail")
+                } ?: run {
+                    // Set default profile image
+                    binding.ivProfile.setImageResource(R.drawable.ic_person)
+                    Log.d(TAG, "No profile image found, using default")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to load profile image", e)
+                binding.ivProfile.setImageResource(R.drawable.ic_person)
+            }
+        }
     }
 
     /**
@@ -97,6 +181,11 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        // Profile image click - open image picker
+        binding.layoutProfileImage.setOnClickListener {
+            imagePickerLauncher.launch("image/*")
+        }
+
         // 로그아웃 버튼
         binding.layoutLogout.setOnClickListener {
             showLogoutConfirmDialog()
@@ -141,11 +230,90 @@ class ProfileActivity : AppCompatActivity() {
         binding.layoutChangePassword.setOnClickListener {
             Toast.makeText(this, "비밀번호 변경 (준비중)", Toast.LENGTH_SHORT).show()
         }
+    }
 
-        // ✅ 알림 카드 클릭
-        binding.cvNotifications.setOnClickListener {
-            val intent = Intent(this@ProfileActivity, NotificationsActivity::class.java)
-            startActivity(intent)
+    /**
+     * Handle image selection from gallery
+     */
+    private fun handleImageSelected(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val bitmap = loadBitmapFromUri(uri)
+                if (bitmap == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ProfileActivity,
+                            "이미지를 불러올 수 없습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                // Use email as user identifier
+                val userEmail = prefs.getString("user_email", null)
+                if (userEmail == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ProfileActivity,
+                            "사용자 정보를 찾을 수 없습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                Log.d(TAG, "Saving profile image for: $userEmail")
+                val result = profileImageRepository.saveProfileImage(userEmail, bitmap)
+
+                result.onSuccess {
+                    withContext(Dispatchers.Main) {
+                        binding.ivProfile.setImageBitmap(bitmap)
+                        Toast.makeText(
+                            this@ProfileActivity,
+                            "프로필 사진이 변경되었습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        Log.d(TAG, "✅ Profile image saved and displayed")
+                    }
+                }.onFailure { error ->
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ProfileActivity,
+                            "프로필 사진 저장 실패: ${error.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        Log.e(TAG, "❌ Failed to save profile image", error)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Exception in handleImageSelected", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@ProfileActivity,
+                        "이미지 처리 중 오류가 발생했습니다",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Load bitmap from URI
+     */
+    private fun loadBitmapFromUri(uri: Uri): Bitmap? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(contentResolver, uri)
+                ImageDecoder.decodeBitmap(source)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaStore.Images.Media.getBitmap(contentResolver, uri)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load bitmap from URI", e)
+            null
         }
     }
 
@@ -243,55 +411,13 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Load notification count
-     */
-    private fun loadNotificationCount() {
-        lifecycleScope.launch {
-            try {
-                Log.d(TAG, "📬 Loading notification count...")
 
-                val result = notificationRepository.getNotifications(unreadOnly = false)
 
-                result.onSuccess { response ->
-                    val unreadCount = response.unreadCount
-                    Log.d(TAG, "✅ Unread notifications: $unreadCount")
 
-                    withContext(Dispatchers.Main) {
-                        updateNotificationBadge(unreadCount)
-                    }
-                }.onFailure { error ->
-                    Log.e(TAG, "❌ Failed to load notification count", error)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception while loading notification count", e)
-            }
-        }
-    }
-
-    /**
-     * Update notification badge UI
-     */
-    private fun updateNotificationBadge(unreadCount: Int) {
-        binding.tvNotificationCount.text = "${unreadCount}개"
-
-        if (unreadCount > 0) {
-            binding.tvNotificationBadge.visibility = android.view.View.VISIBLE
-            binding.tvNotificationBadge.text = if (unreadCount > 99) {
-                "99+"
-            } else {
-                unreadCount.toString()
-            }
-            Log.d(TAG, "📍 Badge updated: $unreadCount")
-        } else {
-            binding.tvNotificationBadge.visibility = android.view.View.GONE
-            Log.d(TAG, "📍 Badge hidden (no unread notifications)")
-        }
-    }
 
     override fun onResume() {
         super.onResume()
-        // Reload notification count when returning from NotificationsActivity
-        loadNotificationCount()
+        // Reload profile image when returning to activity
+        loadProfileImage()
     }
 }

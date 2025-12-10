@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['budget_warning', 'spending_alert', 'category_alert', 'tip', 'monthly_summary'],
+    enum: ['budget_warning', 'spending_alert', 'category_alert', 'tip', 'monthly_summary', 'weekly_report', 'monthly_report'],
     required: true
   },
   title: {

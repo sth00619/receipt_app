@@ -22,12 +22,14 @@ class ReceiptRepository {
      */
     suspend fun getReceipts(
         category: String? = null,
+        startDate: String? = null,
+        endDate: String? = null,
         limit: Int = 50
     ): Result<List<ReceiptResponse>> {
         return try {
-            Log.d(TAG, "📋 영수증 목록 조회 중... (category: $category, limit: $limit)")
+            Log.d(TAG, "📋 영수증 목록 조회 중... (category: $category, startDate: $startDate, endDate: $endDate, limit: $limit)")
 
-            val response = api.getReceipts(category, limit = limit)
+            val response = api.getReceipts(category, startDate, endDate, limit)
 
             // ✅ 상세 응답 로깅
             Log.d(TAG, "Response code: ${response.code()}")

@@ -134,7 +134,13 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        transactionAdapter = TransactionAdapter()
+        transactionAdapter = TransactionAdapter { transaction ->
+            // Navigate to ReceiptDetailActivity
+            val intent = Intent(this, ReceiptDetailActivity::class.java).apply {
+                putExtra("receipt_id", transaction.id)
+            }
+            startActivity(intent)
+        }
         binding.rvRecentTransactions.apply {
             layoutManager = LinearLayoutManager(this@HomeActivity)
             adapter = transactionAdapter
@@ -482,8 +488,14 @@ class HomeActivity : AppCompatActivity() {
         val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvDialogTransactions)
         val emptyStateView = dialogView.findViewById<android.widget.TextView>(R.id.tvEmptyState)
 
-        // Setup RecyclerView
-        val dialogAdapter = TransactionAdapter()
+        // Setup RecyclerView with click listener
+        val dialogAdapter = TransactionAdapter { transaction ->
+            // Navigate to ReceiptDetailActivity
+            val intent = Intent(this, ReceiptDetailActivity::class.java).apply {
+                putExtra("receipt_id", transaction.id)
+            }
+            startActivity(intent)
+        }
         recyclerView.apply {
             layoutManager = LinearLayoutManager(this@HomeActivity)
             adapter = dialogAdapter

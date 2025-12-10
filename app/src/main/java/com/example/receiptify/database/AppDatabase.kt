@@ -6,13 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ReceiptImageEntity::class],
-    version = 1,
+    entities = [ReceiptImageEntity::class, ProfileImageEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun receiptImageDao(): ReceiptImageDao
+    abstract fun profileImageDao(): ProfileImageDao
 
     companion object {
         @Volatile
