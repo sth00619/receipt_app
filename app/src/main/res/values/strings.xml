@@ -120,4 +120,10 @@
     <string name="title_activity_receipt_detail">ReceiptDetailActivity</string>
     <string name="title_activity_receipt_list_adapter">ReceiptListAdapter</string>
 
+    <!-- Exchange Rates -->
+    <string name="exchange_rate_title">Exchange Rate (KRW)</string>
+    <string name="refreshing_exchange_rates">Refreshing exchange rates...</string>
+    <string name="error_exchange_rate_load">Failed to load exchange rates: %s</string>
+    <string name="error_exchange_rate_generic">Exchange rate error: %s</string>
+
 </resources>
