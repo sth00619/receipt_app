@@ -18,6 +18,10 @@ app.use(express.json());
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/receiptify')
   .then(() => {
     console.log('✅ MongoDB connected');
+
+    // ⏰ Scheduled Jobs 시작 (Node-Cron)
+    const { startScheduledJobs } = require('./src/jobs/scheduledJobs');
+    startScheduledJobs();
   })
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err);

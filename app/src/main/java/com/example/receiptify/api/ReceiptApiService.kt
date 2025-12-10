@@ -86,7 +86,7 @@ interface ReceiptApiService {
         @Path("notificationId") notificationId: String
     ): Response<ApiResponse<Any>>
 
-    @POST("notifications/read-all")
+    @PUT("notifications/read-all")
     suspend fun markAllNotificationsAsRead(): Response<ApiResponse<Any>>
 
     @DELETE("notifications/{notificationId}")
