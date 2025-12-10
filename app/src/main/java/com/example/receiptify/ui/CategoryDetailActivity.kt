@@ -45,7 +45,7 @@ class CategoryDetailActivity : AppCompatActivity() {
             finish()
         }
 
-        binding.tvTitle.text = "${categoryName} 상세 내역"
+        binding.tvTitle.text = "${categoryName} Specific Info"
 
         // 어댑터 생성
         receiptAdapter = ReceiptListAdapter { receipt ->
