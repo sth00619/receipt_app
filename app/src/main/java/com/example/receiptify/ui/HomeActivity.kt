@@ -19,6 +19,7 @@ import com.example.receiptify.repository.NotificationRepository
 import com.example.receiptify.repository.ReceiptRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.navercorp.nid.NaverIdLoginSDK
+import com.example.receiptify.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,6 +73,7 @@ class HomeActivity : AppCompatActivity() {
         setupUI()
         setupRecyclerView()
         loadDataFromMongoDB()
+        loadExchangeRates()
         setupClickListeners()
         setupBackPressHandler()
     }
@@ -346,6 +348,113 @@ class HomeActivity : AppCompatActivity() {
         updateTodaySpending(0)
     }
 
+    // 환율 정보 가져오기 및 UI 업데이트
+    private fun loadExchangeRates() {
+        Log.d(TAG, "🔄 환율 정보 로드 시작")
+        binding.progressBarExchange.visibility = View.VISIBLE
+        binding.layoutExchangeRates.removeAllViews() // 초기화
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 1. 최신 환율 정보 가져오기
+                val targets = "KRW,USD,JPY,CNY"
+                Log.d(TAG, "📡 API 요청: getLatestRates")
+                val response = RetrofitClient.exchangeRateApi.getLatestRates(symbols = targets)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val latestData = response.body()!!
+                    val rates = latestData.rates
+                    val date = latestData.date // YYYY-MM-DD
+                    Log.d(TAG, "✅ 환율 로드 성공: $date, rates=${rates.keys}")
+
+                    val eurToKrw = rates["KRW"] ?: 0.0
+                    val eurToUsd = rates["USD"] ?: 1.0
+                    val eurToJpy = rates["JPY"] ?: 1.0
+                    val eurToCny = rates["CNY"] ?: 1.0
+
+                    // 어제 날짜 계산 (하루 전)
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val todayDateObj = dateFormat.parse(date)
+                    val calendar = java.util.Calendar.getInstance()
+                    calendar.time = todayDateObj
+                    calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                    val yesterdayDate = dateFormat.format(calendar.time)
+
+                    Log.d(TAG, "📡 어제 데이터 요청: $yesterdayDate")
+                    val prevResponse = RetrofitClient.exchangeRateApi.getRatesByDate(yesterdayDate, symbols = targets)
+                    val prevRates = prevResponse.body()?.rates
+
+                    val prevEurToKrw = prevRates?.get("KRW") ?: eurToKrw
+                    val prevEurToUsd = prevRates?.get("USD") ?: eurToUsd
+                    val prevEurToJpy = prevRates?.get("JPY") ?: eurToJpy
+                    val prevEurToCny = prevRates?.get("CNY") ?: eurToCny
+
+                    // KRW 기준 환율 계산
+                    val usdToKrw = eurToKrw / eurToUsd
+                    val jpyToKrw = (eurToKrw / eurToJpy) * 100
+                    val cnyToKrw = eurToKrw / eurToCny
+                    val eurToKrwFinal = eurToKrw
+
+                    val prevUsdToKrw = prevEurToKrw / prevEurToUsd
+                    val prevJpyToKrw = (prevEurToKrw / prevEurToJpy) * 100
+                    val prevCnyToKrw = prevEurToKrw / prevEurToCny
+                    val prevEurToKrwFinal = prevEurToKrw
+
+                    val exchangeList = listOf(
+                        Triple("USD", usdToKrw, usdToKrw - prevUsdToKrw),
+                        Triple("EUR", eurToKrwFinal, eurToKrwFinal - prevEurToKrwFinal),
+                        Triple("JPY (100)", jpyToKrw, jpyToKrw - prevJpyToKrw),
+                        Triple("CNY", cnyToKrw, cnyToKrw - prevCnyToKrw)
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        binding.progressBarExchange.visibility = View.GONE
+                        binding.layoutExchangeRates.removeAllViews()
+
+                        val inflater = android.view.LayoutInflater.from(this@HomeActivity)
+                        val numberFormat = NumberFormat.getInstance(Locale.getDefault())
+                        numberFormat.maximumFractionDigits = 2
+                        numberFormat.minimumFractionDigits = 2
+
+                        for ((code, rate, change) in exchangeList) {
+                            val itemView = inflater.inflate(R.layout.item_exchange_rate, binding.layoutExchangeRates, false)
+                            val tvCode = itemView.findViewById<android.widget.TextView>(R.id.tvCurrencyCode)
+                            val tvRate = itemView.findViewById<android.widget.TextView>(R.id.tvExchangeRate)
+                            val tvChange = itemView.findViewById<android.widget.TextView>(R.id.tvChangeAmount)
+
+                            tvCode.text = code
+                            tvRate.text = numberFormat.format(rate)
+
+                            val changeText = if (change > 0) "▲ ${numberFormat.format(change)}" else if (change < 0) "▼ ${numberFormat.format(kotlin.math.abs(change))}" else "- 0.00"
+                            val changeColor = if (change > 0) android.graphics.Color.RED else if (change < 0) android.graphics.Color.BLUE else android.graphics.Color.GRAY
+
+                            tvChange.text = changeText
+                            tvChange.setTextColor(changeColor)
+
+                            binding.layoutExchangeRates.addView(itemView)
+                        }
+                    }
+
+                } else {
+                    Log.e(TAG, "❌ 환율 API 응답 실패: ${response.code()} ${response.message()}")
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "❌ Error Body: $errorBody")
+
+                    withContext(Dispatchers.Main) {
+                        binding.progressBarExchange.visibility = View.GONE
+                        Toast.makeText(this@HomeActivity, "환율 로드 실패: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 환율 로드 중 예외 발생: $e", e)
+                withContext(Dispatchers.Main) {
+                    binding.progressBarExchange.visibility = View.GONE
+                    Toast.makeText(this@HomeActivity, "오류: $e", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     private fun parseDate(dateString: String): Long {
         return try {
             SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
@@ -362,8 +471,9 @@ class HomeActivity : AppCompatActivity() {
             startActivity(Intent(this, ReceiptScanActivity::class.java))
         }
 
-        binding.cardViewReceipts.setOnClickListener {
-            Toast.makeText(this, R.string.view_receipts_coming_soon, Toast.LENGTH_SHORT).show()
+        binding.cardExchangeRate.setOnClickListener {
+            Toast.makeText(this, "환율 정보를 새로고침합니다.", Toast.LENGTH_SHORT).show()
+            loadExchangeRates()
         }
 
         binding.btnViewDetails.setOnClickListener {

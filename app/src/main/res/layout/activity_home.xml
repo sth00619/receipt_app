@@ -114,7 +114,7 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_card_gradient"
                     android:orientation="vertical"
-                    android:padding="24dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -127,7 +127,7 @@
                         android:id="@+id/tvMonthlyTotal"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:text="₩ 226,000"
                         android:textColor="@color/white"
                         android:textSize="32sp"
@@ -136,7 +136,7 @@
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
@@ -169,8 +169,8 @@
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginBottom="16dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
                         android:alpha="0.3"
                         android:background="@color/white" />
 
@@ -202,11 +202,12 @@
                         android:id="@+id/btnViewDetails"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="48dp"
+                        android:layout_height="40dp"
                         android:layout_gravity="end"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:text="자세히 보기"
                         android:textColor="@color/white"
+                        android:textSize="12sp"
                         app:cornerRadius="12dp"
                         app:strokeColor="@color/white"
                         app:strokeWidth="1dp" />
@@ -235,7 +236,7 @@
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardScanReceipt"
                     android:layout_width="0dp"
-                    android:layout_height="140dp"
+                    android:layout_height="170dp"
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
                     android:clickable="true"
@@ -280,11 +281,11 @@
 
                 </androidx.cardview.widget.CardView>
 
-                <!-- View Receipts Card -->
+                <!-- Exchange Rate Card -->
                 <androidx.cardview.widget.CardView
-                    android:id="@+id/cardViewReceipts"
+                    android:id="@+id/cardExchangeRate"
                     android:layout_width="0dp"
-                    android:layout_height="140dp"
+                    android:layout_height="170dp"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
                     android:clickable="true"
@@ -297,33 +298,33 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@drawable/bg_card_white"
-                        android:gravity="center"
                         android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <ImageView
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:src="@drawable/ic_list"
-                            app:tint="@color/primary_purple" />
+                        android:padding="12dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="@string/upload_receipt"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
+                            android:layout_marginBottom="8dp"
+                            android:text="환율 (KRW)"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center"
-                            android:text="@string/upload_receipt_desc"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="11sp" />
+                        <LinearLayout
+                            android:id="@+id/layoutExchangeRates"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical">
+
+                            <!-- Placeholder for dynamic content or initial loading state -->
+                            <ProgressBar
+                                android:id="@+id/progressBarExchange"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:layout_marginTop="20dp" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 

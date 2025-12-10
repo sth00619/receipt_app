@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     private const val BASE_URL = "http://10.0.2.2:3000/api/"
+    private const val EXCHANGE_RATE_BASE_URL = "https://api.frankfurter.app/"
     private const val TAG = "RetrofitClient"
 
     private var appContext: Context? = null
@@ -101,8 +102,22 @@ object RetrofitClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
+    private val exchangeRateClient = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val exchangeRateRetrofit = Retrofit.Builder()
+        .baseUrl(EXCHANGE_RATE_BASE_URL)
+        .client(exchangeRateClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
     val api: ReceiptApiService = retrofit.create(ReceiptApiService::class.java)
     val receiptApi: ReceiptApiService = api
+    val exchangeRateApi: ExchangeRateApiService = exchangeRateRetrofit.create(ExchangeRateApiService::class.java)
 
     suspend fun refreshToken(): String? {
         return try {
