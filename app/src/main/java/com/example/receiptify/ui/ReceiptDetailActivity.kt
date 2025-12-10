@@ -103,7 +103,8 @@ class ReceiptDetailActivity : AppCompatActivity() {
                     // Display receipt information
                     binding.apply {
                         tvStoreName.text = receipt.storeName
-                        tvStoreAddress.text = receipt.storeAddress ?: "주소 정보 없음"
+                        // tvStoreAddress.text = receipt.storeAddress ?: "주소 정보 없음" // 요청에 의해 주소 숨김
+                        tvStoreAddress.visibility = View.GONE
                         tvStorePhone.text = receipt.storePhone ?: "전화번호 정보 없음"
 
                         tvTotalAmount.text = "₩ ${numberFormat.format(receipt.totalAmount.toLong())}"

@@ -93,7 +93,9 @@ class CategoryDetailActivity : AppCompatActivity() {
 
             result.onSuccess { list ->
                 Log.d(TAG, "✅ Loaded ${list.size} receipts for category $category")
-                receiptAdapter.submitList(list)
+                // ✅ 날짜 기준 내림차순 정렬 (최신순)
+                val sortedList = list.sortedByDescending { it.transactionDate }
+                receiptAdapter.submitList(sortedList)
             }.onFailure { error ->
                 Log.e(TAG, "❌ Failed to load receipts", error)
             }

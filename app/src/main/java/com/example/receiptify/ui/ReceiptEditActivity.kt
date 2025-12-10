@@ -42,7 +42,7 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
     private var selectedDate: Date = Date()
     private var receiptImageUri: Uri? = null
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.KOREA)
     private val displayDateFormat = SimpleDateFormat("yyyy년 MM월 dd일", Locale.KOREA)
 
     companion object {
@@ -231,7 +231,10 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
         DatePickerDialog(
             this,
             { _, year, month, dayOfMonth ->
-                calendar.set(year, month, dayOfMonth)
+                // 날짜만 변경하고 시간은 유지
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
                 selectedDate = calendar.time
                 binding.etTransactionDate.setText(displayDateFormat.format(selectedDate))
             },
