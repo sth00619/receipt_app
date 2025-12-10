@@ -50,7 +50,9 @@ class AdvancedReceiptParser {
     }
 
     private fun extractPhoneNumber(text: String): String? {
-        val phoneRegex = Regex("(\\d{2,3}[-.]?\\d{3,4}[-.]?\\d{4})")
+        // 기존: Regex("(\\d{2,3}[-.]?\\d{3,4}[-.]?\\d{4})")
+        // 수정: 공백 포함 허용
+        val phoneRegex = Regex("(\\d{2,3}[\\s.-]?\\d{3,4}[\\s.-]?\\d{4})")
         val phone = phoneRegex.find(text)?.value
         Log.d(TAG, "📞 전화번호: $phone")
         return phone

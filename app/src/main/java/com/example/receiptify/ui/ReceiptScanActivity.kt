@@ -339,6 +339,7 @@ class ReceiptScanActivity : AppCompatActivity() {
 
             // ParsedReceiptData 전달
             intent.putExtra("storeName", data.storeName ?: "")
+            intent.putExtra("storePhone", data.storePhone ?: "") // ✅ 전화번호 전달
             intent.putExtra("totalAmount", data.totalAmount ?: 0)
             intent.putExtra("transactionDate", data.transactionDate?.time ?: System.currentTimeMillis())
             intent.putExtra("category", data.suggestedCategory ?: "others")

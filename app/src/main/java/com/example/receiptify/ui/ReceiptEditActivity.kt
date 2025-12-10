@@ -147,6 +147,13 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
                 Log.d(TAG, "✅ 상점명: $storeName")
             }
 
+            // 전화번호 (추가됨)
+            val storePhone = intent.getStringExtra("storePhone")
+            if (!storePhone.isNullOrBlank()) {
+                binding.etStorePhone.setText(storePhone)
+                Log.d(TAG, "✅ 전화번호: $storePhone")
+            }
+
             // 총액
             val totalAmount = intent.getIntExtra("totalAmount", 0)
             if (totalAmount > 0) {
@@ -256,6 +263,9 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
             return
         }
 
+        // 전화번호 가져오기
+        val storePhone = binding.etStorePhone.text.toString().trim()
+
         val totalAmountText = binding.etTotalAmount.text.toString().trim()
         if (totalAmountText.isBlank()) {
             Toast.makeText(this, "총액을 입력해주세요", Toast.LENGTH_SHORT).show()
@@ -293,6 +303,7 @@ class ReceiptEditActivity : AppCompatActivity(), SensorEventListener {
         val request = CreateReceiptRequest(
             userId = userId,
             storeName = storeName,
+            storePhone = if (storePhone.isNotBlank()) storePhone else null, // ✅ 전화번호 추가
             totalAmount = totalAmount,
             transactionDate = dateFormat.format(selectedDate),
             category = categoryCode,
