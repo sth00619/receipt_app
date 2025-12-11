@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.receiptify.R
 import com.example.receiptify.api.RetrofitClient
+import com.example.receiptify.repository.NotificationRepository
 import com.example.receiptify.databinding.ActivityAnalyticsViewBinding
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.components.Legend
@@ -26,7 +27,9 @@ import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.PercentFormatter
 import com.github.mikephil.charting.utils.MPPointF
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -34,6 +37,8 @@ class AnalyticsViewActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAnalyticsViewBinding
     private val numberFormat = NumberFormat.getNumberInstance(Locale.KOREA)
+
+    private lateinit var notificationRepository: NotificationRepository
 
     // Chart Colors (Banksalad style)
     private val chartColors = listOf(
@@ -63,6 +68,7 @@ class AnalyticsViewActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        notificationRepository = NotificationRepository()
         binding = ActivityAnalyticsViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -76,13 +82,41 @@ class AnalyticsViewActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowHomeEnabled(true)
-        supportActionBar?.title = "Analytics"
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        binding.toolbar.setNavigationOnClickListener {
-            // 뒤로가기 누르면 Home으로 이동하거나 종료
-            finish()
+        // Notification icon click
+        binding.layoutNotificationIcon.setOnClickListener {
+            val intent = Intent(this, NotificationsActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Chatbot icon click
+        binding.btnChatbot.setOnClickListener {
+            val intent = Intent(this, ChatbotActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Load notification count
+        loadNotificationCount()
+    }
+    private fun loadNotificationCount() {
+        lifecycleScope.launch {
+            try {
+                val result = notificationRepository.getNotifications(unreadOnly = false)
+                result.onSuccess { response ->
+                    val unreadCount = response.unreadCount
+                    withContext(Dispatchers.Main) {
+                        if (unreadCount > 0) {
+                            binding.tvNotificationBadge.visibility = android.view.View.VISIBLE
+                            binding.tvNotificationBadge.text = if (unreadCount > 99) "99+" else unreadCount.toString()
+                        } else {
+                            binding.tvNotificationBadge.visibility = android.view.View.GONE
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(AnalyticsViewActivity.Companion.TAG, "Failed to load notification count", e)
+            }
         }
     }
 
