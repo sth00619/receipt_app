@@ -181,6 +181,28 @@ class AdvancedReceiptParser {
         val shoppingKeywords = listOf("다이소", "올리브영", "쿠팡", "이마트")
         if (shoppingKeywords.any { t.contains(it) }) return "shopping"
 
+        val entertainmentKeywords = listOf(
+            "메가박스", "CGV", "롯데시네마", "영화관",
+            "노래방", "pc방", "오락실", "뮤지컬", "연극", "공연"
+        )
+        if (entertainmentKeywords.any { t.contains(it) }) return "entertainment"
+
+        // ⭐ 8️⃣ 건강 / 의료 (새로 추가)
+        val healthcareKeywords = listOf(
+            "병원", "의원", "치과", "한의원", "약국", "내과", "외과",
+            "피부과", "정형외과", "약", "약제비", "건강검진", "물리치료"
+        )
+        if (healthcareKeywords.any { t.contains(it) }) return "healthcare"
+
+        // ⭐ 9️⃣ 공과금 / 생활요금 (새로 추가)
+        val utilitiesKeywords = listOf(
+            "전기요금", "전기", "가스요금", "가스", "수도요금", "수도",
+            "통신요금", "휴대폰요금", "인터넷요금", "kt", "lg유플러스",
+            "유플러스", "sk브로드밴드", "브로드밴드"
+        )
+        if (utilitiesKeywords.any { t.contains(it) }) return "utilities"
+
+        // 🔟 기타
         return "others"
     }
 
