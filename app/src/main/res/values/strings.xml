@@ -2,7 +2,7 @@
     <string name="app_name">Receiptify</string>
 
     <!-- Login Screen -->
-    <string name="login_title">Create Account</string>
+    <string name="login_title">Login</string>
     <string name="login_subtitle">A New Start for Receipt Management</string>
     <string name="email_hint">email@gmail.com</string>
     <string name="password_hint">Password</string>
