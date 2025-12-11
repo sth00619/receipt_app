@@ -11,7 +11,8 @@ import java.util.*
 class ChatSessionAdapter(
     private val sessions: List<ChatSession>,
     private val onSessionClick: (ChatSession) -> Unit,
-    private val onSessionLongClick: (ChatSession) -> Unit
+    private val onSessionLongClick: (ChatSession) -> Unit,
+    private val onDeleteClick: (ChatSession) -> Unit
 ) : RecyclerView.Adapter<ChatSessionAdapter.SessionViewHolder>() {
 
     inner class SessionViewHolder(private val binding: ItemChatSessionBinding) :
@@ -34,6 +35,10 @@ class ChatSessionAdapter(
             binding.root.setOnLongClickListener {
                 onSessionLongClick(session)
                 true
+            }
+
+            binding.btnDelete.setOnClickListener {
+                onDeleteClick(session)
             }
         }
 

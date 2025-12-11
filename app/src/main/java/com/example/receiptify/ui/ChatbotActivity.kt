@@ -11,8 +11,11 @@ import com.example.receiptify.adapter.ChatMessageAdapter
 import com.example.receiptify.api.RetrofitClient
 import com.example.receiptify.api.models.ChatMessageItem
 import com.example.receiptify.api.models.CreateSessionRequest
+import com.example.receiptify.api.models.SendMessageResponse
 import com.example.receiptify.databinding.ActivityChatbotBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -132,23 +135,33 @@ class ChatbotActivity : AppCompatActivity() {
                     if (newSession != null) {
                         sessionId = newSession.id
                         sessionTitle = newSession.title
-                        supportActionBar?.title = "💬 $sessionTitle"
+                        withContext(Dispatchers.Main) {
+                            supportActionBar?.title = "💬 $sessionTitle"
+                        }
                         Log.d(TAG, "✅ 새 세션 생성 완료: ${newSession.id}")
 
                         // 환영 메시지
-                        addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요! 예를 들어:\n• \"이번 달 총 지출 얼마야?\"\n• \"지난주 식비\"\n• \"교통비 분석해줘\"")
+                        withContext(Dispatchers.Main) {
+                            addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요! 예를 들어:\n• \"이번 달 총 지출 얼마야?\"\n• \"지난주 식비\"\n• \"교통비 분석해줘\"")
+                        }
                     }
 
                 } else {
                     Log.e(TAG, "❌ 세션 생성 실패: ${response.code()}")
-                    addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요!")
+                    withContext(Dispatchers.Main) {
+                        addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요!")
+                    }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 세션 생성 중 오류", e)
-                addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요!")
+                withContext(Dispatchers.Main) {
+                    addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요!")
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                }
             }
         }
     }
@@ -172,43 +185,55 @@ class ChatbotActivity : AppCompatActivity() {
                     // 세션 제목 업데이트
                     data?.session?.let { session ->
                         sessionTitle = session.title
-                        supportActionBar?.title = "💬 $sessionTitle"
+                        withContext(Dispatchers.Main) {
+                            supportActionBar?.title = "💬 $sessionTitle"
+                        }
                     }
 
                     // 메시지 변환 및 추가
-                    messages.clear()
-                    for (msg in loadedMessages) {
-                        val chatMessage = ChatMessage(
-                            text = msg.message,
-                            isUser = msg.role == "user",
-                            timestamp = formatMessageTime(msg.createdAt),
-                            messageId = msg.id
-                        )
-                        messages.add(chatMessage)
-                    }
-                    chatAdapter.notifyDataSetChanged()
+                    withContext(Dispatchers.Main) {
+                        messages.clear()
+                        for (msg in loadedMessages) {
+                            val chatMessage = ChatMessage(
+                                text = msg.message,
+                                isUser = msg.role == "user",
+                                timestamp = formatMessageTime(msg.createdAt),
+                                messageId = msg.id
+                            )
+                            messages.add(chatMessage)
+                        }
+                        chatAdapter.notifyDataSetChanged()
 
-                    if (messages.isNotEmpty()) {
-                        binding.rvMessages.scrollToPosition(messages.size - 1)
+                        if (messages.isNotEmpty()) {
+                            binding.rvMessages.scrollToPosition(messages.size - 1)
+                        }
                     }
 
                     Log.d(TAG, "✅ ${loadedMessages.size}개 메시지 로딩 완료")
 
                     // 메시지가 없으면 환영 메시지
-                    if (messages.isEmpty()) {
-                        addBotMessage("대화를 이어가세요! 😊\n\n무엇이 궁금하신가요?")
+                    if (loadedMessages.isEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            addBotMessage("대화를 이어가세요! 😊\n\n무엇이 궁금하신가요?")
+                        }
                     }
 
                 } else {
                     Log.e(TAG, "❌ 메시지 로딩 실패: ${response.code()}")
-                    addBotMessage("이전 대화를 불러오는데 실패했습니다. 새로운 질문을 해주세요!")
+                    withContext(Dispatchers.Main) {
+                        addBotMessage("이전 대화를 불러오는데 실패했습니다. 새로운 질문을 해주세요!")
+                    }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 메시지 로딩 중 오류", e)
-                addBotMessage("이전 대화를 불러오는데 실패했습니다. 새로운 질문을 해주세요!")
+                withContext(Dispatchers.Main) {
+                    addBotMessage("이전 대화를 불러오는데 실패했습니다. 새로운 질문을 해주세요!")
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                }
             }
         }
     }
@@ -256,51 +281,68 @@ class ChatbotActivity : AppCompatActivity() {
     private fun requestChatbotResponse(message: String) {
         lifecycleScope.launch {
             try {
-                binding.progressBar.visibility = View.VISIBLE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.VISIBLE
+                }
 
                 Log.d(TAG, "💬 챗봇에게 메시지 전송: $message")
+                Log.d(TAG, "   세션 ID: $sessionId")
 
-                val response = if (sessionId != null) {
+                var botResponse: String = "응답을 받지 못했습니다."
+
+                if (sessionId != null) {
                     // 세션이 있으면 세션 API 사용
                     val requestBody = mapOf("message" to message)
-                    RetrofitClient.api.sendSessionMessage(sessionId!!, requestBody)
+                    val response = RetrofitClient.api.sendSessionMessage(sessionId!!, requestBody)
+
+                    Log.d(TAG, "   응답 코드: ${response.code()}")
+                    Log.d(TAG, "   응답 성공: ${response.body()?.success}")
+
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val responseData = response.body()?.data
+                        Log.d(TAG, "   응답 데이터: $responseData")
+
+                        botResponse = responseData?.response ?: "응답을 받지 못했습니다."
+                        Log.d(TAG, "✅ 챗봇 응답: ${botResponse.take(100)}...")
+                    } else {
+                        Log.e(TAG, "❌ 챗봇 응답 실패: ${response.code()}")
+                        val errorBody = response.errorBody()?.string()
+                        Log.e(TAG, "   에러 바디: $errorBody")
+                        botResponse = "죄송해요, 응답을 생성하는데 실패했습니다. 😢"
+                    }
                 } else {
                     // 없으면 레거시 API 사용 (새 세션 자동 생성)
                     val requestBody = mapOf("message" to message)
-                    RetrofitClient.api.sendChatbotMessage(requestBody)
+                    val response = RetrofitClient.api.sendChatbotMessage(requestBody)
+
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val responseData = response.body()?.data
+
+                        botResponse = responseData?.get("response") as? String ?: "응답을 받지 못했습니다."
+
+                        // 세션 ID 업데이트
+                        sessionId = responseData?.get("sessionId") as? String
+
+                        Log.d(TAG, "✅ 챗봇 응답 (레거시): ${botResponse.take(100)}...")
+                    } else {
+                        Log.e(TAG, "❌ 챗봇 응답 실패 (레거시): ${response.code()}")
+                        botResponse = "죄송해요, 응답을 생성하는데 실패했습니다. 😢"
+                    }
                 }
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val responseData = response.body()?.data
-
-                    val botResponse = if (responseData != null) {
-                        // SendMessageResponse 또는 Map에서 응답 추출
-                        when (responseData) {
-                            is Map<*, *> -> responseData["response"] as? String ?: "응답을 받지 못했습니다."
-                            else -> "응답을 받지 못했습니다."
-                        }
-                    } else {
-                        "응답을 받지 못했습니다."
-                    }
-
-                    // 세션 ID 업데이트 (레거시 API 사용 시)
-                    if (sessionId == null && responseData is Map<*, *>) {
-                        sessionId = responseData["sessionId"] as? String
-                    }
-
-                    Log.d(TAG, "✅ 챗봇 응답: ${botResponse.take(100)}...")
+                withContext(Dispatchers.Main) {
                     addBotMessage(botResponse)
-
-                } else {
-                    Log.e(TAG, "❌ 챗봇 응답 실패: ${response.code()}")
-                    addBotMessage("죄송해요, 응답을 생성하는데 실패했습니다. 😢")
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 챗봇 통신 중 오류", e)
-                addBotMessage("오류가 발생했습니다. 다시 시도해주세요.")
+                withContext(Dispatchers.Main) {
+                    addBotMessage("오류가 발생했습니다. 다시 시도해주세요.")
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                }
             }
         }
     }
@@ -311,7 +353,9 @@ class ChatbotActivity : AppCompatActivity() {
     private fun requestNotificationAdvice(notificationId: String) {
         lifecycleScope.launch {
             try {
-                binding.progressBar.visibility = View.VISIBLE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.VISIBLE
+                }
 
                 Log.d(TAG, "💬 알림 기반 조언 요청: $notificationId")
 
@@ -325,21 +369,31 @@ class ChatbotActivity : AppCompatActivity() {
                             ?: "조언을 받지 못했습니다."
 
                         Log.d(TAG, "✅ 알림 조언 수신")
-                        addBotMessage(advice)
+                        withContext(Dispatchers.Main) {
+                            addBotMessage(advice)
+                        }
                     } else {
-                        addBotMessage("조언을 받지 못했습니다.")
+                        withContext(Dispatchers.Main) {
+                            addBotMessage("조언을 받지 못했습니다.")
+                        }
                     }
 
                 } else {
                     Log.e(TAG, "❌ 알림 조언 실패: ${response.code()}")
-                    addBotMessage("조언을 가져오는데 실패했습니다.")
+                    withContext(Dispatchers.Main) {
+                        addBotMessage("조언을 가져오는데 실패했습니다.")
+                    }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 알림 조언 요청 중 오류", e)
-                addBotMessage("오류가 발생했습니다.")
+                withContext(Dispatchers.Main) {
+                    addBotMessage("오류가 발생했습니다.")
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                }
             }
         }
     }

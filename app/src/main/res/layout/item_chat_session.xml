@@ -12,7 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
         <!-- 아이콘 -->
         <FrameLayout
@@ -87,15 +88,16 @@
 
         </LinearLayout>
 
-        <!-- 화살표 아이콘 -->
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center_vertical"
+        <!-- 삭제 버튼 -->
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_marginStart="8dp"
-            android:src="@drawable/ic_arrow_down"
-            android:rotation="-90"
-            app:tint="@color/text_secondary" />
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="삭제"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="@color/error_red" />
 
     </LinearLayout>
 

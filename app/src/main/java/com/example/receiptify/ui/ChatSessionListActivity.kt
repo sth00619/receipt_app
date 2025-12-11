@@ -61,6 +61,9 @@ class ChatSessionListActivity : AppCompatActivity() {
             },
             onSessionLongClick = { session ->
                 showSessionOptions(session)
+            },
+            onDeleteClick = { session ->
+                confirmDeleteSession(session)
             }
         )
 
