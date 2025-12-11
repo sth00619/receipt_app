@@ -78,10 +78,6 @@ class NotificationsActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 재분석 버튼
-        binding.btnAnalyze.setOnClickListener {
-            analyzeSpending()
-        }
 
         // 모두 읽음 버튼
         binding.btnMarkAllRead.setOnClickListener {

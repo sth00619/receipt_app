@@ -476,10 +476,6 @@ class HomeActivity : AppCompatActivity() {
             loadExchangeRates()
         }
 
-        binding.btnViewDetails.setOnClickListener {
-            showTodaySpendingDialog()
-        }
-
         binding.tvViewAll.setOnClickListener {
             showAllTransactionsDialog()
         }
