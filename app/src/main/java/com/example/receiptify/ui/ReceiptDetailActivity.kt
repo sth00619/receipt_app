@@ -125,15 +125,6 @@ class ReceiptDetailActivity : AppCompatActivity() {
                             tvNoItems.visibility = View.VISIBLE
                         }
 
-                        // Show notes if available
-                        if (!receipt.notes.isNullOrBlank()) {
-                            tvNotes.text = receipt.notes
-                            tvNotes.visibility = View.VISIBLE
-                            tvNotesLabel.visibility = View.VISIBLE
-                        } else {
-                            tvNotes.visibility = View.GONE
-                            tvNotesLabel.visibility = View.GONE
-                        }
                     }
 
                     // Hide loading, show content

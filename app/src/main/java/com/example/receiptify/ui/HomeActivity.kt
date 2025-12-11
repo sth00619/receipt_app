@@ -502,6 +502,10 @@ class HomeActivity : AppCompatActivity() {
                     startActivity(Intent(this, CategoriesActivity::class.java))
                     false
                 }
+                R.id.nav_analytics -> {
+                    startActivity(Intent(this, AnalyticsViewActivity::class.java))
+                    false
+                }
                 R.id.nav_receipts -> {
                     startActivity(Intent(this, ReceiptScanActivity::class.java))
                     false

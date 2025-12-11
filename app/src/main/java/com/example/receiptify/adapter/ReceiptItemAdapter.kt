@@ -37,7 +37,7 @@ class ReceiptItemAdapter : ListAdapter<ReceiptItem, ReceiptItemAdapter.ReceiptIt
                 tvQuantity.text = "x${item.quantity}"
 
                 if (item.unitPrice != null && item.unitPrice > 0) {
-                    tvUnitPrice.text = "@ ₩${numberFormat.format(item.unitPrice.toLong())}"
+                    tvUnitPrice.text = " ₩${numberFormat.format(item.unitPrice.toLong())}"
                 } else {
                     tvUnitPrice.text = ""
                 }

@@ -482,6 +482,12 @@ class CategoriesActivity : AppCompatActivity() {
                     true
                 }
                 R.id.nav_categories -> true
+                R.id.nav_analytics -> {
+                    // ✅ 명시적으로 Context 지정
+                    val intent = Intent(this@CategoriesActivity, AnalyticsViewActivity::class.java)
+                    startActivity(intent)
+                    false
+                }
                 R.id.nav_receipts -> {
                     // ✅ 명시적으로 Context 지정
                     val intent = Intent(this@CategoriesActivity, ReceiptScanActivity::class.java)

@@ -19,7 +19,6 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Progress Bar -->
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
@@ -27,7 +26,6 @@
         android:layout_gravity="center"
         android:visibility="visible" />
 
-    <!-- Main Content -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
@@ -41,7 +39,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Receipt Image -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -58,7 +55,6 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Store Information Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -118,7 +114,6 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Payment Information Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -147,7 +142,6 @@
                         android:layout_marginVertical="12dp"
                         android:background="?attr/colorOutline" />
 
-                    <!-- Total Amount -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -172,7 +166,6 @@
 
                     </LinearLayout>
 
-                    <!-- Tax Amount -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -197,7 +190,6 @@
 
                     </LinearLayout>
 
-                    <!-- Discount Amount -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -228,7 +220,6 @@
                         android:layout_marginVertical="12dp"
                         android:background="?attr/colorOutline" />
 
-                    <!-- Transaction Date -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -252,7 +243,6 @@
 
                     </LinearLayout>
 
-                    <!-- Payment Method -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -277,7 +267,6 @@
 
                     </LinearLayout>
 
-                    <!-- Category -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -306,7 +295,6 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Receipt Items Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -357,51 +345,6 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Notes Card (if available) -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/tvNotesLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="메모"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:visibility="gone" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginVertical="12dp"
-                        android:background="?attr/colorOutline" />
-
-                    <TextView
-                        android:id="@+id/tvNotes"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="메모 내용"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="14sp"
-                        android:visibility="gone" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Delete Button -->
             <Button
                 android:id="@+id/btnDelete"
                 android:layout_width="match_parent"
