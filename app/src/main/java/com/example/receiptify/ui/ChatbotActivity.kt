@@ -1,17 +1,23 @@
 package com.example.receiptify.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.receiptify.adapter.ChatMessageAdapter
 import com.example.receiptify.api.RetrofitClient
-import com.example.receiptify.api.models.ChatMessageItem
 import com.example.receiptify.api.models.CreateSessionRequest
-import com.example.receiptify.api.models.SendMessageResponse
 import com.example.receiptify.databinding.ActivityChatbotBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,8 +34,13 @@ class ChatbotActivity : AppCompatActivity() {
     private var sessionId: String? = null
     private var sessionTitle: String = "New Conversation"
 
+    // ============ 음성 인식 관련 변수 ============
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening = false
+
     companion object {
         private const val TAG = "ChatbotActivity"
+        private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
     }
 
     data class ChatMessage(
@@ -51,6 +62,7 @@ class ChatbotActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupClickListeners()
+        setupVoiceRecognition()  // 음성 인식 초기화 추가
 
         // 알림에서 넘어왔는지 확인
         val notificationId = intent.getStringExtra("notification_id")
@@ -67,6 +79,12 @@ class ChatbotActivity : AppCompatActivity() {
             // 새 세션 생성
             createNewSession()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 음성 인식 리소스 해제
+        speechRecognizer?.destroy()
     }
 
     private fun setupToolbar() {
@@ -98,6 +116,15 @@ class ChatbotActivity : AppCompatActivity() {
             }
         }
 
+        // 음성 입력 버튼
+        binding.fabVoice.setOnClickListener {
+            if (isListening) {
+                stopVoiceRecognition()
+            } else {
+                startVoiceRecognition()
+            }
+        }
+
         // 빠른 질문 버튼들
         binding.btnQuickTotal.setOnClickListener {
             sendQuickMessage("이번 달 총 지출 얼마야?")
@@ -115,6 +142,160 @@ class ChatbotActivity : AppCompatActivity() {
             sendQuickMessage("이번 달 소비 분석")
         }
     }
+
+    // ============ 음성 인식 기능 ============
+
+    /**
+     * 음성 인식 초기화
+     */
+    private fun setupVoiceRecognition() {
+        // 음성 인식 사용 가능 여부 확인
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            binding.fabVoice.visibility = View.GONE
+            Log.w(TAG, "⚠️ 이 기기에서는 음성 인식을 사용할 수 없습니다")
+            return
+        }
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                Log.d(TAG, "🎤 음성 인식 준비됨")
+                runOnUiThread {
+                    binding.cardVoiceRecording.visibility = View.VISIBLE
+                }
+            }
+
+            override fun onBeginningOfSpeech() {
+                Log.d(TAG, "🎤 음성 입력 시작")
+            }
+
+            override fun onRmsChanged(rmsdB: Float) {
+                // 음성 볼륨 변화 (UI 애니메이션에 활용 가능)
+            }
+
+            override fun onBufferReceived(buffer: ByteArray?) {
+                // 버퍼 수신
+            }
+
+            override fun onEndOfSpeech() {
+                Log.d(TAG, "🎤 음성 입력 종료")
+                runOnUiThread {
+                    binding.cardVoiceRecording.visibility = View.GONE
+                    isListening = false
+                }
+            }
+
+            override fun onError(error: Int) {
+                Log.e(TAG, "🎤 음성 인식 오류: $error")
+                runOnUiThread {
+                    binding.cardVoiceRecording.visibility = View.GONE
+                    isListening = false
+
+                    val errorMessage = when (error) {
+                        SpeechRecognizer.ERROR_NO_MATCH -> "음성을 인식하지 못했습니다. 다시 시도해주세요."
+                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "음성 입력 시간이 초과되었습니다."
+                        SpeechRecognizer.ERROR_AUDIO -> "오디오 녹음 오류가 발생했습니다."
+                        SpeechRecognizer.ERROR_NETWORK -> "네트워크 오류가 발생했습니다."
+                        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "네트워크 시간 초과입니다."
+                        SpeechRecognizer.ERROR_CLIENT -> "클라이언트 오류입니다."
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "마이크 권한이 필요합니다."
+                        else -> "음성 인식 오류가 발생했습니다."
+                    }
+                    Toast.makeText(this@ChatbotActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val recognizedText = matches[0]
+                    Log.d(TAG, "🎤 인식된 텍스트: $recognizedText")
+
+                    runOnUiThread {
+                        binding.cardVoiceRecording.visibility = View.GONE
+                        isListening = false
+
+                        // 인식된 텍스트로 메시지 전송
+                        if (recognizedText.isNotEmpty()) {
+                            sendMessage(recognizedText)
+                        }
+                    }
+                }
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                // 부분 결과 (실시간 인식 표시에 활용 가능)
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {
+                // 추가 이벤트
+            }
+        })
+    }
+
+    /**
+     * 음성 인식 시작
+     */
+    private fun startVoiceRecognition() {
+        // 권한 확인
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_RECORD_AUDIO_PERMISSION
+            )
+            return
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")  // 한국어
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ko-KR")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "질문을 말씀해주세요...")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+
+        try {
+            isListening = true
+            speechRecognizer?.startListening(intent)
+            Log.d(TAG, "🎤 음성 인식 시작")
+        } catch (e: Exception) {
+            Log.e(TAG, "🎤 음성 인식 시작 실패", e)
+            isListening = false
+            Toast.makeText(this, "음성 인식을 시작할 수 없습니다", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * 음성 인식 중지
+     */
+    private fun stopVoiceRecognition() {
+        speechRecognizer?.stopListening()
+        isListening = false
+        binding.cardVoiceRecording.visibility = View.GONE
+    }
+
+    /**
+     * 권한 요청 결과 처리
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 권한 승인됨 - 음성 인식 시작
+                startVoiceRecognition()
+            } else {
+                Toast.makeText(this, "음성 입력을 사용하려면 마이크 권한이 필요합니다", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // ============ 세션 관리 ============
 
     /**
      * 새 세션 생성
@@ -142,7 +323,7 @@ class ChatbotActivity : AppCompatActivity() {
 
                         // 환영 메시지
                         withContext(Dispatchers.Main) {
-                            addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요! 예를 들어:\n• \"이번 달 총 지출 얼마야?\"\n• \"지난주 식비\"\n• \"교통비 분석해줘\"")
+                            addBotMessage("안녕하세요! 😊 소비 도우미입니다.\n\n궁금한 점을 물어보세요! 예를 들어:\n• \"이번 달 총 지출 얼마야?\"\n• \"지난주 식비\"\n• \"교통비 분석해줘\"\n\n🎤 마이크 버튼을 눌러 음성으로 질문할 수도 있어요!")
                         }
                     }
 
@@ -237,6 +418,8 @@ class ChatbotActivity : AppCompatActivity() {
             }
         }
     }
+
+    // ============ 메시지 관리 ============
 
     /**
      * 사용자 메시지 전송

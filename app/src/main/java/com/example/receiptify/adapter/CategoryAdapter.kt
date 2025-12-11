@@ -44,10 +44,10 @@ class CategoryAdapter(
                 tvCategoryAmount.text = "₩ ${numberFormat.format(category.amount)}"
 
                 // 건수
-                tvCategoryCount.text = "${category.count} cases"
+                tvCategoryCount.text = "${category.count} 건"
 
                 // 퍼센트
-                tvCategoryPercentage.text = "Total's ${String.format("%.1f", category.percentage)}%"
+                tvCategoryPercentage.text = "전체 ${String.format("%.1f", category.percentage)}%"
 
                 // 프로그레스 바
                 progressBar.progress = category.percentage.toInt()

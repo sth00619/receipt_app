@@ -28,7 +28,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Spending Categories"
+                    android:text="지출 카테고리"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -118,7 +118,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Total Spending"
+                        android:text="총 지출"
                         android:textColor="@color/white"
                         android:textSize="14sp"
                         android:alpha="0.9" />
@@ -148,7 +148,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Transactions"
+                                android:text="거래 건수"
                                 android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:alpha="0.8" />
@@ -174,7 +174,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Average Spending"
+                                android:text="평균 지출"
                                 android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:alpha="0.8" />
@@ -213,22 +213,22 @@
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="All" />
+                    android:text="전체" />
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="This Week" />
+                    android:text="이번 주" />
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="This Month" />
+                    android:text="이번 달" />
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Select Date" />
+                    android:text="날짜 선택" />
 
             </com.google.android.material.tabs.TabLayout>
 

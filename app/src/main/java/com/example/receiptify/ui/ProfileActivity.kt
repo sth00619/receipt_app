@@ -318,6 +318,7 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
+        // 현재 탭 선택 상태 유지
         binding.bottomNavigation.selectedItemId = R.id.nav_profile
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
@@ -325,7 +326,7 @@ class ProfileActivity : AppCompatActivity() {
                 R.id.nav_home -> {
                     val intent = Intent(this@ProfileActivity, HomeActivity::class.java)
                     startActivity(intent)
-                    finish()
+                    finish() // 스택 관리를 위해 현재 액티비티 종료
                     true
                 }
                 R.id.nav_categories -> {
@@ -334,7 +335,24 @@ class ProfileActivity : AppCompatActivity() {
                     finish()
                     true
                 }
-                R.id.nav_profile -> true
+
+                // ✅ [추가됨] Analytics 탭 클릭 시 이동
+                R.id.nav_analytics -> {
+                    val intent = Intent(this@ProfileActivity, AnalyticsViewActivity::class.java)
+                    startActivity(intent)
+                    finish()
+                    true
+                }
+
+                // ✅ [추가됨] Scan 탭 클릭 시 이동 (보통 스캔 화면은 finish() 하지 않거나, 모달로 띄우기도 함)
+                R.id.nav_receipts -> {
+                    val intent = Intent(this@ProfileActivity, ReceiptScanActivity::class.java)
+                    startActivity(intent)
+                    false // 탭 이동이 아닌 액션 실행(새 화면)인 경우 false를 반환하기도 하지만, UI상 선택 효과를 주려면 true
+                }
+
+                R.id.nav_profile -> true // 이미 현재 화면임
+
                 else -> false
             }
         }

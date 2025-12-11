@@ -1,29 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary Colors -->
+    <!-- Primary Colors - Banksalad Style (Mint/Teal) -->
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
-    <color name="primary_purple">#6366F1</color>
-    <color name="primary_purple_light">#818CF8</color>
-    <color name="primary_purple_dark">#4F46E5</color>
+    <color name="primary_purple">#00D4AA</color>
+    <color name="primary_purple_light">#33E0BD</color>
+    <color name="primary_purple_dark">#00B894</color>
+
+    <!-- New Primary Colors -->
+    <color name="primary_mint">#00D4AA</color>
+    <color name="primary_mint_light">#5AEDC4</color>
+    <color name="primary_mint_dark">#00B894</color>
+    <color name="primary_teal">#00BFA5</color>
+    <color name="accent_yellow">#FFD93D</color>
+    <color name="accent_coral">#FF6B6B</color>
+    <color name="accent_blue">#4ECDC4</color>
 
     <!-- Background Colors -->
-    <color name="background_light">#F9FAFB</color>
-    <color name="background_dark">#1F2937</color>
+    <color name="background_light">#F5F7FA</color>
+    <color name="background_dark">#1A1A2E</color>
+    <color name="background_card">#FFFFFF</color>
 
     <!-- Surface Colors -->
     <color name="surface_light">#FFFFFF</color>
-    <color name="surface_dark">#374151</color>
+    <color name="surface_dark">#2D2D44</color>
 
     <!-- Card Background -->
     <color name="card_background">#FFFFFF</color>
-    <color name="card_background_dark">#374151</color>
+    <color name="card_background_dark">#2D2D44</color>
+    <color name="card_highlight">#E8FFF8</color>
 
     <!-- Text Colors -->
-    <color name="text_primary">#111827</color>
-    <color name="text_primary_dark">#F9FAFB</color>
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_primary_dark">#F5F7FA</color>
     <color name="text_secondary">#6B7280</color>
     <color name="text_secondary_dark">#9CA3AF</color>
+    <color name="text_hint">#9CA3AF</color>
 
     <!-- Other Colors -->
     <color name="white">#FFFFFF</color>
@@ -39,13 +51,29 @@
 
     <!-- Error Color -->
     <color name="error_red">#EF4444</color>
+    <color name="success_green">#00D4AA</color>
+    <color name="warning_yellow">#FFD93D</color>
 
-    <!-- Category Colors -->
-    <color name="category_food">#EF4444</color>
-    <color name="category_transport">#3B82F6</color>
-    <color name="category_shopping">#F59E0B</color>
-    <color name="category_healthcare">#10B981</color>
-    <color name="category_entertainment">#8B5CF6</color>
-    <color name="category_utilities">#06B6D4</color>
-    <color name="category_others">#6B7280</color>
+    <!-- Category Colors (Banksalad Style) -->
+    <color name="category_food">#FF6B6B</color>
+    <color name="category_transport">#4ECDC4</color>
+    <color name="category_shopping">#FFD93D</color>
+    <color name="category_healthcare">#00D4AA</color>
+    <color name="category_entertainment">#A29BFE</color>
+    <color name="category_utilities">#74B9FF</color>
+    <color name="category_others">#95A5A6</color>
+
+    <!-- Chart Colors -->
+    <color name="chart_1">#00D4AA</color>
+    <color name="chart_2">#4ECDC4</color>
+    <color name="chart_3">#FFD93D</color>
+    <color name="chart_4">#FF6B6B</color>
+    <color name="chart_5">#A29BFE</color>
+    <color name="chart_6">#74B9FF</color>
+    <color name="chart_7">#FD79A8</color>
+    <color name="chart_background">#F8F9FA</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#00D4AA</color>
+    <color name="gradient_end">#4ECDC4</color>
 </resources>

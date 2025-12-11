@@ -199,4 +199,8 @@ interface ReceiptApiService {
         @Query("endDate") endDate: String? = null
     ): Response<ApiResponse<StatsResponse>>
 
+    // 이번 달 통계 조회 (간편 버전)
+    @GET("receipts/stats")
+    suspend fun getStatsByMonth(): Response<ApiResponse<Map<String, Any>>>
+
 }

@@ -89,8 +89,8 @@ dependencies {
     // 🔹 ML Kit - 한글 OCR(문자인식) 기능
     implementation("com.google.mlkit:text-recognition-korean:16.0.0")
 
-    // 카카오 지도 SDK
-    // implementation("com.kakao.maps.open:android:2.6.0")
+    // UI 관련
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
